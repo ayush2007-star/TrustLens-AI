@@ -14,10 +14,11 @@ The application does **not** use a trained ML model or runtime LLM. It does not 
 ## Demo links and screenshot
 
 - **Repository:** `https://github.com/ayush2007-star/TrustLens-AI`
-- **Local frontend:** `http://localhost:5173`
-- **Local API health:** `http://127.0.0.1:8000/api/health`
-- **Local interactive API docs:** `http://127.0.0.1:8000/docs`
-- **Production deployment:** Configured for Vercel (frontend) + Render / Container (backend) via `frontend/vercel.json`, `render.yaml`, `Dockerfile`, and `Procfile`. Verified live URLs are documented below once deployed.
+- **Live Backend API (Render):** `https://trustlens-api-sidy.onrender.com`
+- **Live Health Endpoint:** `https://trustlens-api-sidy.onrender.com/api/health`
+- **Live Interactive API Docs:** `https://trustlens-api-sidy.onrender.com/docs`
+- **Live Frontend (Vercel):** Configured and ready to link with `VITE_API_BASE_URL=https://trustlens-api-sidy.onrender.com/api`.
+- **Local Development:** `http://localhost:5173` (Vite) and `http://127.0.0.1:8000` (FastAPI).
 
 ### Genuine Application Screenshots
 

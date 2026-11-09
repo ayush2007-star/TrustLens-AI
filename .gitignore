@@ -37,6 +37,14 @@ env/
 *.db
 backend/trustlens.db
 
+# Archives and Packages
+*.zip
+*.tar.gz
+*.tgz
+.temp_chrome_profile/
+
+
+
 # Node
 node_modules/
 npm-debug.log*

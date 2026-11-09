@@ -32,7 +32,7 @@ export const MethodologyPage: React.FC = () => {
           <span>Axiom 1: HTTPS Confirms Encryption, Not Legitimacy</span>
         </div>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-          The presence of a padlock icon or valid TLS certificate merely confirms that data between the user's browser and the remote server is encrypted in transit and that the domain registrant verified domain ownership at issuance time. <strong>Over 80% of modern phishing websites operate over valid, free TLS certificates.</strong> TrustLens AI treats HTTPS strictly as a transport security parameter, not proof of organizational trustworthiness.
+          A valid TLS certificate helps verify an encrypted connection to a hostname; it does not prove that the site or organization is trustworthy. TrustLens AI treats HTTPS only as a transport-security signal, never as proof of legitimacy.
         </p>
       </section>
 
@@ -43,7 +43,7 @@ export const MethodologyPage: React.FC = () => {
           <span>Axiom 2: Absence of Known Threats Does Not Imply Safety</span>
         </div>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-          Adversaries deploy disposable, fast-flux domains and targeted lures that typically remain unlisted by global blacklists for the first 24–72 hours of an active campaign. TrustLens AI never marks a domain "Safe" solely because external threat intelligence APIs returned zero matching records.
+          Threat feeds can be incomplete or unavailable. A missing record is not a clean verdict, and TrustLens AI does not infer that a target is safe from an unavailable feed.
         </p>
       </section>
 
@@ -65,7 +65,7 @@ export const MethodologyPage: React.FC = () => {
           <span>Axiom 4: Multi-Layer Server-Side Request Forgery (SSRF) Defense</span>
         </div>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-          When accepting arbitrary URLs, web scanners risk attacking internal cloud networks. TrustLens AI resolves all hostnames prior to connection and blocks loopback (<code>127.0.0.0/8</code>, <code>::1</code>), RFC 1918 private subnets (<code>10.0.0.0/8</code>, <code>172.16.0.0/12</code>, <code>192.168.0.0/16</code>), cloud link-local metadata (<code>169.254.169.254</code>), multicast, and documentation networks. Every step of a redirect chain is independently re-validated.
+          Target hostnames are resolved and rejected if any answer is not globally routable or DNS resolution fails. The HTTP and TLS scanners connect to a validated IP address while preserving the original hostname for the HTTP Host header and TLS verification, mitigating DNS rebinding between validation and connection. Redirects are inspected one hop at a time; each destination is revalidated and pinned. Requests have a timeout and bounded response body.
         </p>
       </section>
 
@@ -76,7 +76,7 @@ export const MethodologyPage: React.FC = () => {
           <span>Axiom 5: Content Integrity vs Claim Validity</span>
         </div>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-          The tamper-evident cryptographic registry implements SHA-256 hash chaining to prove mathematical non-repudiation (guaranteeing that a recorded threat report cannot be modified or deleted by unauthorized database admins). <strong>However, the hash chain proves integrity of the recorded content, not that the submitter's original claim was factually true.</strong>
+          The local database registry stores canonical report hashes linked with SHA-256 and checks the full chain during verification. It can detect inconsistent stored records, but it does not prevent a database administrator from rewriting the entire database and is not an external blockchain or proof of a report's factual accuracy.
         </p>
       </section>
 
@@ -97,11 +97,11 @@ export const MethodologyPage: React.FC = () => {
           </div>
           <div className="space-y-1">
             <span className="text-slate-500 uppercase font-bold block text-[10px]">Threat Feeds & DNS</span>
-            <p>abuse.ch URLhaus, PhishTank, dnspython, cryptography</p>
+            <p>URLhaus (optional live query), VirusTotal (API key), dnspython, cryptography; PhishTank/OpenPhish are not live integrations.</p>
           </div>
           <div className="space-y-1">
             <span className="text-slate-500 uppercase font-bold block text-[10px]">Smart Contract Demonstrator</span>
-            <p>Solidity ^0.8.20 (<code>contracts/TrustLensRegistry.sol</code>)</p>
+            <p>Solidity source demonstrator only; the application does not deploy or call it.</p>
           </div>
         </div>
       </section>

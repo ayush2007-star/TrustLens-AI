@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Shield, Activity, Terminal, ArrowRight } from 'lucide-react';
+import { Menu, X, Activity, Terminal, ArrowRight, LogOut } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { apiClient } from '../api/client';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [systemHealthy, setSystemHealthy] = useState<boolean | null>(null);
+  const [hasAccessToken, setHasAccessToken] = useState(apiClient.getAccessToken() !== null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -21,7 +22,9 @@ export const Navbar: React.FC = () => {
     { to: '/investigate', label: 'Investigate URL' },
     { to: '/message-analyzer', label: 'Message Analyzer' },
     { to: '/tls-trust', label: 'TLS Trust' },
+    { to: '/security-assessment', label: 'Security Assessment' },
     { to: '/threat-intel', label: 'Threat Intel' },
+    { to: '/threat-correlation', label: 'Threat Correlation' },
     { to: '/trust-registry', label: 'Trust Registry' },
     { to: '/history', label: 'History' },
     { to: '/methodology', label: 'Methodology' },
@@ -50,6 +53,19 @@ export const Navbar: React.FC = () => {
 
         {/* Right tools: Engine status & Action */}
         <div className="flex items-center gap-3">
+          {hasAccessToken && (
+            <button
+              onClick={() => {
+                apiClient.clearAccessToken();
+                setHasAccessToken(false);
+                window.location.reload();
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Lock</span>
+            </button>
+          )}
           <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs">
             <Activity className={`w-3.5 h-3.5 ${systemHealthy === true ? 'text-emerald-400' : 'text-amber-400'}`} />
             <span className="text-[11px] font-mono text-slate-300">

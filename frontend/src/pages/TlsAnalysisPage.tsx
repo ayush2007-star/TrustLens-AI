@@ -28,9 +28,9 @@ export const TlsAnalysisPage: React.FC = () => {
     setError(null);
     try {
       // Trigger investigation on target and extract TLS report
-      const inv = await apiClient.investigateUrl(hostname.trim());
-      if (inv.tls_report) {
-        setTlsReport(inv.tls_report);
+      const report = await apiClient.analyzeTls(hostname.trim());
+      if (report) {
+        setTlsReport(report);
       } else {
         setError('TLS inspection returned no certificate data for this host.');
       }
@@ -50,7 +50,7 @@ export const TlsAnalysisPage: React.FC = () => {
           TLS Certificate & Digital Trust Inspector
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Perform live cryptographic inspection of public X.509 website certificates, cipher suites, and Certificate Authority bindings.
+          Inspect public X.509 certificate metadata, hostname matching, validity, and negotiated TLS version.
         </p>
       </div>
 
@@ -109,14 +109,14 @@ export const TlsAnalysisPage: React.FC = () => {
                   {tlsReport.status_text}
                 </span>
                 <span className="text-xs font-mono text-cyan-400 bg-slate-950 border border-slate-800 px-2 py-1 rounded">
-                  {tlsReport.tls_version || 'TLSv1.2/1.3'}
+                  {tlsReport.tls_version || 'Not negotiated'}
                 </span>
               </div>
             </div>
 
             <div className="text-center px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 shrink-0">
               <span className="text-xl font-black font-mono text-white">
-                {tlsReport.days_remaining ?? '0'}
+                {tlsReport.days_remaining ?? 'N/A'}
                 <span className="text-xs text-slate-500 font-sans ml-1">days</span>
               </span>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
@@ -155,7 +155,7 @@ export const TlsAnalysisPage: React.FC = () => {
               </pre>
             </div>
             <div className="p-4 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
-              <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Issuer (Certificate Authority)</h4>
+              <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Certificate Issuer</h4>
               <pre className="font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">
                 {JSON.stringify(tlsReport.issuer, null, 2)}
               </pre>

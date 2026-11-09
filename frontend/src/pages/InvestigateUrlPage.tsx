@@ -154,6 +154,9 @@ export const InvestigateUrlPage: React.FC = () => {
               ✓ Wikipedia (Benign)
             </button>
           </div>
+          <p className="text-[11px] text-amber-300/80">
+            Investigation URLs are saved in the local database and may be sent to enabled threat-feed providers. Do not include passwords, session IDs, or other sensitive query values.
+          </p>
         </form>
       </div>
 
@@ -478,7 +481,15 @@ export const InvestigateUrlPage: React.FC = () => {
                         ? 'bg-rose-950 text-rose-300 border-rose-800'
                         : 'bg-emerald-950 text-emerald-300 border-emerald-800'
                     }`}>
-                      {feed.is_available ? (feed.is_match ? 'MATCH (MALICIOUS)' : 'NO RECORD') : 'UNAVAILABLE'}
+                      {feed.details?.synthetic_simulation
+                        ? 'SIMULATED DEMO'
+                        : !feed.is_available
+                        ? feed.verdict === 'DISABLED' ? 'DISABLED' : 'UNAVAILABLE'
+                        : feed.is_match
+                        ? `MATCH (${feed.verdict})`
+                        : feed.verdict === 'NO_RECORD_FOUND'
+                        ? 'NO RECORD'
+                        : feed.verdict}
                     </span>
                   </div>
                 ))}

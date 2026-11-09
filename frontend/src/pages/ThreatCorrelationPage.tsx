@@ -60,7 +60,7 @@ export const ThreatCorrelationPage: React.FC = () => {
             Threat Correlation & Infrastructure Topology
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Deterministic discovery of shared IP hosting, authoritative nameservers, and campaign overlap across investigations.
+            Deterministic discovery of shared IP hosting, authoritative nameservers, and direct report-to-domain relationships.
           </p>
         </div>
         <button
@@ -96,13 +96,13 @@ export const ThreatCorrelationPage: React.FC = () => {
             </div>
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
               <span className="text-2xl font-bold font-mono text-purple-400">{graphData.summary.total_edges}</span>
-              <p className="text-xs text-slate-400 mt-1 uppercase font-semibold">Verified Relationships</p>
+              <p className="text-xs text-slate-400 mt-1 uppercase font-semibold">Observed Relationships</p>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
               <span className="text-2xl font-bold font-mono text-amber-400">
                 {graphData.summary.shared_infrastructure_clusters}
               </span>
-              <p className="text-xs text-slate-400 mt-1 uppercase font-semibold">Shared Hosting Clusters</p>
+              <p className="text-xs text-slate-400 mt-1 uppercase font-semibold">Shared Infrastructure Links</p>
             </div>
           </div>
 

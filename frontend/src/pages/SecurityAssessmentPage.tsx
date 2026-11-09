@@ -10,7 +10,7 @@ import {
   FileCode
 } from 'lucide-react';
 import { apiClient } from '../api/client';
-import { SecurityAssessment, URLFinding } from '../types';
+import { SecurityAssessment } from '../types';
 import { RiskBadge } from '../components/RiskBadge';
 import { ErrorState } from '../components/ErrorState';
 
@@ -18,7 +18,6 @@ export const SecurityAssessmentPage: React.FC = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [assessment, setAssessment] = useState<SecurityAssessment | null>(null);
-  const [findings, setFindings] = useState<URLFinding[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleAssess = async (e: React.FormEvent) => {
@@ -27,10 +26,9 @@ export const SecurityAssessmentPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const inv = await apiClient.investigateUrl(url.trim());
-      if (inv.security_assessment) {
-        setAssessment(inv.security_assessment);
-        setFindings(inv.findings.filter((f) => f.category === 'HEADER' || f.category === 'SECURITY'));
+      const result = await apiClient.analyzeSecurity(url.trim());
+      if (result) {
+        setAssessment(result);
       } else {
         setError('Security assessment returned no header data.');
       }
@@ -140,7 +138,7 @@ export const SecurityAssessmentPage: React.FC = () => {
           {/* Detailed Passive Findings */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              Diagnostic Vulnerability & Hardening Recommendations ({assessment.passive_findings.length})
+              Passive Hardening Findings & Recommendations ({assessment.passive_findings.length})
             </h3>
 
             {assessment.passive_findings.length === 0 ? (

@@ -48,7 +48,7 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 relative z-10 space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/40 text-cyan-300 text-xs font-mono font-medium">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span>AI-POWERED WEB THREAT & DIGITAL TRUST INTELLIGENCE</span>
+            <span>WEB THREAT ANALYSIS & DIGITAL TRUST DEMO</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white leading-tight">
@@ -60,7 +60,7 @@ export const LandingPage: React.FC = () => {
 
           <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
             Investigate phishing URLs, fraudulent banking replicas, and scam messages.
-            Verify TLS certificates, discover deceptive brand typosquatting, and audit threats with an immutable cryptographic ledger.
+            Verify TLS certificates, discover deceptive brand typosquatting, and review reports in a local tamper-evident hash chain.
           </p>
 
           {/* Quick Investigation Bar */}
@@ -98,10 +98,10 @@ export const LandingPage: React.FC = () => {
               <span>•</span>
               <button
                 type="button"
-                onClick={() => setUrlInput('https://en.wikipedia.org')}
+                onClick={() => setUrlInput('https://example.com')}
                 className="text-cyan-400 hover:underline font-mono"
               >
-                Wikipedia (Benign)
+                Benign Example (Synthetic)
               </button>
               <span>•</span>
               <button
@@ -112,6 +112,9 @@ export const LandingPage: React.FC = () => {
                 Raw IP Banking
               </button>
             </div>
+            <p className="pt-2 text-[11px] text-amber-300/80 text-center">
+              Investigation URLs are saved locally and may be sent to enabled threat-feed providers. Do not include passwords, session IDs, or other sensitive values.
+            </p>
           </form>
 
           {/* Secondary Action */}
@@ -171,7 +174,7 @@ export const LandingPage: React.FC = () => {
             </h2>
           </div>
           <p className="text-sm text-slate-300 leading-relaxed">
-            A valid TLS certificate only proves that your connection to the server is encrypted and that the domain registrant verified control of the hostname. <strong>It does not prove the website or business is legitimate.</strong> Over 80% of phishing kits operate over legitimate, free HTTPS certificates.
+            A valid TLS certificate helps verify an encrypted connection to a hostname. <strong>It does not prove that the website or business is legitimate.</strong>
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div className="p-4 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
@@ -228,7 +231,7 @@ export const LandingPage: React.FC = () => {
             <div className="p-3 w-fit rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-400">
               <MessageSquareWarning className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-semibold text-white">AI Scam Message Analyzer</h3>
+            <h3 className="text-base font-semibold text-white">Scam Message Analyzer</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Examines SMS, WhatsApp, and email lures for psychological urgency, OTP solicitation, advance fees, and remote-desktop demands.
             </p>
@@ -287,7 +290,7 @@ export const LandingPage: React.FC = () => {
           <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
             <span className="text-xs font-mono text-purple-400 font-bold">STAGE 03</span>
             <h4 className="text-sm font-semibold text-white">Cross-Reference Feeds</h4>
-            <p className="text-xs text-slate-400">Queries URLhaus, PhishTank, OpenPhish, and local heuristic engines.</p>
+            <p className="text-xs text-slate-400">Queries URLhaus when enabled and VirusTotal when configured; PhishTank/OpenPhish are unavailable.</p>
           </div>
           <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
             <span className="text-xs font-mono text-emerald-400 font-bold">STAGE 04</span>

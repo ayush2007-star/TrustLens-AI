@@ -11,17 +11,40 @@ import {
 } from '../types';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('trustlens_access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const apiClient = {
+  getAccessToken: () => sessionStorage.getItem('trustlens_access_token'),
+
+  setAccessToken: (token: string) => {
+    sessionStorage.setItem('trustlens_access_token', token);
+  },
+
+  clearAccessToken: () => {
+    sessionStorage.removeItem('trustlens_access_token');
+  },
+
   // Health
   getHealth: async () => {
     const res = await api.get('/health');
+    return res.data;
+  },
+
+  checkAccess: async () => {
+    const res = await api.get('/session');
     return res.data;
   },
 
@@ -34,6 +57,16 @@ export const apiClient = {
   // URL Investigations
   investigateUrl: async (url: string): Promise<Investigation> => {
     const res = await api.post('/investigations', { url });
+    return res.data;
+  },
+
+  analyzeTls: async (url: string): Promise<Investigation['tls_report']> => {
+    const res = await api.post('/analyze-tls', { url });
+    return res.data;
+  },
+
+  analyzeSecurity: async (url: string): Promise<Investigation['security_assessment']> => {
+    const res = await api.post('/analyze-security', { url });
     return res.data;
   },
 

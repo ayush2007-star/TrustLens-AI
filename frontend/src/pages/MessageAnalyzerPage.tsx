@@ -70,10 +70,10 @@ export const MessageAnalyzerPage: React.FC = () => {
       <div className="border-b border-slate-800/80 pb-4">
         <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
           <MessageSquareWarning className="w-6 h-6 text-purple-400" />
-          AI Scam & Social Engineering Analyzer
+          Scam & Social Engineering Analyzer
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Detect psychological pressure tactics, credential harvesting, advance-fee payment demands, and remote access lures.
+          Apply local deterministic rules to identify pressure tactics, credential harvesting, advance-fee demands, and remote access lures.
         </p>
       </div>
 
@@ -81,7 +81,7 @@ export const MessageAnalyzerPage: React.FC = () => {
       <div className="flex items-center gap-2.5 p-3 rounded-lg border border-blue-500/30 bg-blue-950/20 text-xs text-blue-300">
         <Lock className="w-4 h-4 text-cyan-400 shrink-0" />
         <span>
-          <strong>Data Privacy Protocol:</strong> Never paste real passwords, confidential OTPs, or financial account numbers. All analyzed communications are processed as untrusted data.
+          <strong>Data Privacy:</strong> Analysis uses local deterministic rules. Submitted text is not stored; only redacted indicators and analysis metadata are retained. Avoid entering real credentials or account numbers.
         </span>
       </div>
 

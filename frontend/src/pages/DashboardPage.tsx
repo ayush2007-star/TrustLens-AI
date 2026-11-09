@@ -97,7 +97,7 @@ export const DashboardPage: React.FC = () => {
             Security Intelligence Dashboard
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time digital trust telemetry computed strictly from verified database records.
+            Counts reflect stored investigations and reports; registry blocks are counted only while the stored hash chain verifies.
           </p>
         </div>
         <div className="flex items-center gap-2">

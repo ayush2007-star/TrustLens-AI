@@ -19,10 +19,14 @@ def analyze_message_endpoint(payload: MessageAnalysisRequest, db: Session = Depe
 
     # Run analysis
     analysis_dict = analyze_scam_message(raw_text)
+    stored_indicators = [
+        {**indicator, "evidence_snippet": "[redacted]"}
+        for indicator in analysis_dict["indicators"]
+    ]
 
     # Persist record
     db_record = ScamMessageAnalysis(
-        input_preview=raw_text[:100] + ("..." if len(raw_text) > 100 else ""),
+        input_preview="[Message content withheld for privacy]",
         analyzed_via=analysis_dict["analyzed_via"],
         risk_level=analysis_dict["risk_level"],
         risk_score=analysis_dict["risk_score"],
@@ -31,9 +35,9 @@ def analyze_message_endpoint(payload: MessageAnalysisRequest, db: Session = Depe
         credential_request=any(i["category"] == "CREDENTIAL_HARVESTING" for i in analysis_dict["indicators"]),
         payment_request=any(i["category"] == "SUSPICIOUS_PAYMENT" for i in analysis_dict["indicators"]),
         impersonation_target=(
-            next((i["evidence_snippet"] for i in analysis_dict["indicators"] if i["category"] == "IMPERSONATION"), None)
+            next((i["title"] for i in analysis_dict["indicators"] if i["category"] == "IMPERSONATION"), None)
         ),
-        indicators=analysis_dict["indicators"],
+        indicators=stored_indicators,
         explanation=analysis_dict["explanation"],
         recommended_precautions=analysis_dict["recommended_precautions"],
         limitations=analysis_dict["limitations"]

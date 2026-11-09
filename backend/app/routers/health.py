@@ -12,6 +12,7 @@ def get_health():
         "tagline": settings.TAGLINE,
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
+        "access_control_required": bool(settings.APP_ACCESS_TOKEN),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "modules": {
             "url_normalizer": "operational",
@@ -23,3 +24,8 @@ def get_health():
             "threat_correlation_engine": "operational"
         }
     }
+
+
+@router.get("/api/session")
+def get_session():
+    return {"authenticated": True}

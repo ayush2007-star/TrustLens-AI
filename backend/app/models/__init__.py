@@ -8,6 +8,8 @@ from app.models.investigation import (
 )
 from app.models.threat_report import (
     ThreatReport,
+    CommunityAbuseEvent,
+    ThreatReportVote,
     ThreatRelationship,
     ScamMessageAnalysis
 )
@@ -21,6 +23,8 @@ __all__ = [
     "SecurityAssessment",
     "ThreatIntelMatch",
     "ThreatReport",
+    "CommunityAbuseEvent",
+    "ThreatReportVote",
     "ThreatRelationship",
     "ScamMessageAnalysis",
     "ThreatRegistryEntry"

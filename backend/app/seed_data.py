@@ -14,7 +14,7 @@ from app.services.registry_service import register_threat_report_on_chain
 def seed_sample_data(db: Session):
     """
     Seeds initial benchmark investigations, threat reports, and scam messages.
-    Includes both benign real-world cases and clearly-labeled SYNTHETIC DEMO cases.
+    All seeded cases are clearly labeled synthetic demo data.
     """
     if db.query(Investigation).first():
         return # Already seeded
@@ -22,67 +22,60 @@ def seed_sample_data(db: Session):
     now = datetime.now(timezone.utc)
 
     # ----------------------------------------------------
-    # Case 1: Benign - Wikipedia (Real World)
+    # Case 1: Synthetic benign baseline
     # ----------------------------------------------------
-    inv_wiki = Investigation(
-        target_url="https://en.wikipedia.org",
-        normalized_url="https://en.wikipedia.org/",
-        hostname="en.wikipedia.org",
-        domain="wikipedia.org",
-        ip_address="208.80.154.224",
+    inv_baseline = Investigation(
+        target_url="https://example.com",
+        normalized_url="https://example.com/",
+        hostname="example.com",
+        domain="example.com",
+        ip_address="93.184.215.14",
         overall_risk="LOW RISK",
         risk_score=8,
         confidence="HIGH",
-        summary="Legitimate institutional encyclopedia. Strong TLS configuration and valid domain registration.",
-        analysis_limitations=["Passive observation only."],
-        is_synthetic_demo=False,
+        summary="SYNTHETIC BENCHMARK: Benign baseline fixture; not a live assessment of a real organization.",
+        analysis_limitations=["Synthetic demonstration data; no live network assessment was performed."],
+        is_synthetic_demo=True,
         status="COMPLETED",
         created_at=now - timedelta(hours=6)
     )
-    db.add(inv_wiki)
+    db.add(inv_baseline)
     db.flush()
 
     db.add(DomainInformation(
-        investigation_id=inv_wiki.id,
-        domain="wikipedia.org",
-        registrar="MarkMonitor Inc.",
-        creation_date="2001-01-13",
-        expiration_date="2030-01-13",
+        investigation_id=inv_baseline.id,
+        domain="example.com",
+        registrar="RESERVED - Internet Assigned Numbers Authority",
+        creation_date="1992-01-01",
+        expiration_date="Reserved example domain",
         age_days=9400,
-        nameservers=["ns0.wikimedia.org", "ns1.wikimedia.org"],
-        a_records=["208.80.154.224"],
-        aaaa_records=["2620:0:861:ed1a::1"],
-        mx_records=["10 mx1001.wikimedia.org"],
-        suspicious_dns_flags=[]
+        nameservers=["a.iana-servers.net", "b.iana-servers.net"],
+        a_records=["93.184.215.14"],
+        suspicious_dns_flags=["SYNTHETIC_BENCHMARK: Reserved example domain"]
     ))
     db.add(TLSReport(
-        investigation_id=inv_wiki.id,
+        investigation_id=inv_baseline.id,
         is_valid=True,
-        status_text="Valid for inspected hostname",
+        status_text="Valid for inspected hostname (Synthetic Benchmark)",
         not_before=now - timedelta(days=30),
         not_after=now + timedelta(days=60),
         days_remaining=60,
-        subject={"commonName": "*.wikipedia.org", "organization": "Wikimedia Foundation, Inc."},
-        issuer={"commonName": "Let's Encrypt Authority X3", "organization": "Let's Encrypt"},
-        san_list=["*.wikipedia.org", "wikipedia.org"],
+        subject={"commonName": "example.com", "organization": "Synthetic benchmark"},
+        issuer={"commonName": "Synthetic test data"},
+        san_list=["example.com", "*.example.com"],
         signature_algorithm="sha256WithRSAEncryption",
         key_type="RSA",
         key_size=2048,
-        tls_version="TLSv1.3",
+        tls_version="TLSv1.3 (Synthetic Benchmark)",
         hostname_match=True
     ))
     db.add(SecurityAssessment(
-        investigation_id=inv_wiki.id,
+        investigation_id=inv_baseline.id,
         https_available=True,
         http_status=200,
-        security_headers={
-            "strict_transport_security": "max-age=31536000; includeSubDomains; preload",
-            "content_security_policy": "default-src 'self'",
-            "x_frame_options": "SAMEORIGIN",
-            "x_content_type_options": "nosniff"
-        },
+        security_headers={"synthetic_demo": True},
         robots_txt_status="Present (HTTP 200)",
-        security_txt_status="Present (HTTP 200 / RFC 9116)"
+        security_txt_status="Present (Synthetic Benchmark)"
     ))
 
     # ----------------------------------------------------
@@ -149,11 +142,11 @@ def seed_sample_data(db: Session):
     db.add(ThreatIntelMatch(
         investigation_id=inv_paypal.id,
         source="TrustLens Phishing Heuristic Engine",
-        is_available=True,
+        is_available=False,
         is_match=True,
-        verdict="MALICIOUS",
+        verdict="SIMULATED_MALICIOUS",
         confidence="HIGH",
-        details={"category": "Credential Harvesting Kit", "target": "PayPal"}
+        details={"synthetic_simulation": True, "category": "Credential Harvesting Kit", "target": "PayPal"}
     ))
 
     # ----------------------------------------------------
@@ -204,16 +197,16 @@ def seed_sample_data(db: Session):
         domain="example.org",
         report_type="PHISHING",
         severity="CRITICAL",
-        description="Phishing kit targeting Chase Bank users via SMS smishing campaign. Fake KYC verification prompt.",
-        evidence_reference="SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        description="SYNTHETIC BENCHMARK: Example phishing report targeting a fictionalized Chase-lookalike URL.",
+        evidence_reference="SYNTHETIC BENCHMARK DATA; no source evidence attached.",
         reporter_alias="RedTeam_Analyst_99",
-        verification_status="Supported by Evidence",
-        upvotes=7,
+        verification_status="Pending",
+        upvotes=0,
         tags=["chase", "banking", "sms-smishing"]
     )
     db.add(rep1)
     db.flush()
-    # Register rep1 in immutable ledger!
+    # Register the synthetic benchmark report in the local hash ledger.
     register_threat_report_on_chain(db, rep1.id)
 
     rep2 = ThreatReport(
@@ -221,8 +214,8 @@ def seed_sample_data(db: Session):
         domain="example.net",
         report_type="IMPERSONATION",
         severity="HIGH",
-        description="Fake parcel customs clearance fee demanding $2.50 via prepaid card or untraceable crypto wallet.",
-        evidence_reference="Reported via SMS gateway lure #88219",
+        description="SYNTHETIC BENCHMARK: Example delivery-fee lure; not a verified real-world report.",
+        evidence_reference="SYNTHETIC BENCHMARK DATA; no source evidence attached.",
         reporter_alias="CyberShield_Watch",
         verification_status="Under Review",
         upvotes=4,
@@ -230,14 +223,14 @@ def seed_sample_data(db: Session):
     )
     db.add(rep2)
     db.flush()
-    # Register rep2 in immutable ledger!
+    # Register the synthetic benchmark report in the local hash ledger.
     register_threat_report_on_chain(db, rep2.id)
 
     # ----------------------------------------------------
     # Sample Scam Message Analyses
     # ----------------------------------------------------
     msg1 = ScamMessageAnalysis(
-        input_preview="URGENT: Your Chase banking account has been locked. Reply with your 6-digit OTP immediately...",
+        input_preview="[Message content withheld for privacy]",
         analyzed_via="deterministic",
         risk_level="HIGH RISK",
         risk_score=95,
@@ -245,20 +238,20 @@ def seed_sample_data(db: Session):
         urgency_detected=True,
         credential_request=True,
         payment_request=False,
-        impersonation_target="Chase Bank",
+        impersonation_target="Impersonation of banking/security fraud staff",
         indicators=[
             {
                 "category": "CREDENTIAL_HARVESTING",
                 "title": "Solicitation of One-Time Password / Security Code",
                 "severity": "CRITICAL",
-                "evidence_snippet": "OTP",
+                "evidence_snippet": "[redacted]",
                 "reasoning": "Legitimate banks NEVER ask customers to disclose OTPs via SMS or phone."
             },
             {
                 "category": "URGENCY",
                 "title": "Threat of punitive service termination",
                 "severity": "HIGH",
-                "evidence_snippet": "locked",
+                "evidence_snippet": "[redacted]",
                 "reasoning": "Fabricates panic to bypass logical verification."
             }
         ],

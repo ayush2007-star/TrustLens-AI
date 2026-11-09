@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api", tags=["Threat Correlation"])
 def get_threat_relationships(db: Session = Depends(get_db)):
     """
     Returns interconnected threat intelligence clusters across domains,
-    shared IP infrastructure, nameservers, and brand typosquatting campaigns.
+    shared IP infrastructure, nameservers, and direct report-to-domain references.
     """
     graph_data = build_threat_correlation_graph(db)
     return graph_data

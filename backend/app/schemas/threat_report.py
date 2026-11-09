@@ -9,7 +9,7 @@ class ThreatReportCreate(BaseModel):
     description: str = Field(..., min_length=10, max_length=5000)
     evidence_reference: Optional[str] = Field(None, max_length=2000)
     reporter_alias: Optional[str] = Field("Anonymous Researcher", max_length=100)
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
 
 class ThreatReportResponse(BaseModel):
     id: str
@@ -25,7 +25,7 @@ class ThreatReportResponse(BaseModel):
     fingerprint: Optional[str] = None
     registered_in_registry: bool
     registry_index: Optional[int] = None
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

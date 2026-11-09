@@ -1,19 +1,13 @@
 import socket
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
+from app.services.bounded_dns import DNS_RESOLUTION_TIMEOUT_SECONDS, bounded_dns_call
+from app.services.demo_data import is_synthetic_demo_host
 
 try:
     import dns.resolver
     DNS_AVAILABLE = True
 except ImportError:
     DNS_AVAILABLE = False
-
-try:
-    import whois
-    WHOIS_AVAILABLE = True
-except ImportError:
-    WHOIS_AVAILABLE = False
-
 
 def inspect_dns_records(hostname: str) -> Dict[str, Any]:
     """
@@ -31,7 +25,7 @@ def inspect_dns_records(hostname: str) -> Dict[str, Any]:
     }
 
     # Handle synthetic test domains
-    if hostname.endswith("example.com") or hostname.endswith("example.org") or hostname.endswith("example.net"):
+    if is_synthetic_demo_host(hostname):
         records["a_records"] = ["93.184.215.14"]
         records["nameservers"] = ["a.iana-servers.net", "b.iana-servers.net"]
         records["suspicious_dns_flags"] = ["SYNTHETIC_DEMO: Reserved IANA test domain"]
@@ -40,8 +34,14 @@ def inspect_dns_records(hostname: str) -> Dict[str, Any]:
     if not DNS_AVAILABLE:
         # Fallback to standard socket resolution if dnspython is unavailable
         try:
-            ips = socket.gethostbyname_ex(hostname)[2]
+            ips = bounded_dns_call(
+                socket.gethostbyname_ex,
+                hostname,
+                timeout=DNS_RESOLUTION_TIMEOUT_SECONDS,
+            )[2]
             records["a_records"] = ips
+        except TimeoutError:
+            records["error"] = "DNS resolution timed out."
         except Exception as e:
             records["error"] = f"DNS resolution failed: {str(e)}"
         return records
@@ -71,10 +71,15 @@ def inspect_dns_records(hostname: str) -> Dict[str, Any]:
     except Exception:
         pass
 
-    # Query NS (use domain root if hostname is deep)
+    # Query NS (use a heuristic root zone when a public-suffix library is unavailable)
     try:
         parts = hostname.split('.')
-        base_zone = ".".join(parts[-2:]) if len(parts) >= 2 else hostname
+        if len(parts) >= 3 and parts[-2].lower() in {"co", "com", "org", "net", "edu", "gov"} and len(parts[-1]) == 2:
+            base_zone = ".".join(parts[-3:])
+        else:
+            base_zone = ".".join(parts[-2:]) if len(parts) >= 2 else hostname
+        records["base_zone"] = base_zone
+        records["base_zone_heuristic"] = True
         answers = resolver.resolve(base_zone, "NS")
         records["nameservers"] = [str(rdata).rstrip('.') for rdata in answers]
     except Exception:
@@ -92,8 +97,8 @@ def inspect_dns_records(hostname: str) -> Dict[str, Any]:
 
 def inspect_whois_data(domain: str) -> Dict[str, Any]:
     """
-    Retrieves WHOIS registration intelligence for the domain.
-    Gracefully handles network errors, timeouts, or unparseable TLDs.
+    Returns WHOIS registration intelligence only for synthetic demo domains.
+    Real lookups are unavailable because their client cannot guarantee a timeout.
     """
     result = {
         "domain": domain,
@@ -106,7 +111,7 @@ def inspect_whois_data(domain: str) -> Dict[str, Any]:
     }
 
     # Synthetic demo handling
-    if domain.endswith("example.com") or domain.endswith("example.org") or domain.endswith("example.net"):
+    if is_synthetic_demo_host(domain):
         result["registrar"] = "RESERVED - Internet Assigned Numbers Authority"
         result["creation_date"] = "1992-01-01"
         result["expiration_date"] = "Permanent / IANA Reserved"
@@ -115,50 +120,8 @@ def inspect_whois_data(domain: str) -> Dict[str, Any]:
         result["raw_whois_available"] = True
         return result
 
-    if not WHOIS_AVAILABLE:
-        result["status"] = "WHOIS lookup engine not installed on host"
-        return result
-
-    try:
-        w = whois.whois(domain)
-        if not w:
-            return result
-
-        result["raw_whois_available"] = True
-        
-        # Registrar
-        if w.registrar:
-            result["registrar"] = str(w.registrar)
-            
-        # Creation Date
-        c_date = w.creation_date
-        if isinstance(c_date, list) and len(c_date) > 0:
-            c_date = c_date[0]
-        if isinstance(c_date, datetime):
-            result["creation_date"] = c_date.strftime("%Y-%m-%d")
-            # Calculate age
-            now = datetime.now(timezone.utc)
-            if c_date.tzinfo is None:
-                c_date = c_date.replace(tzinfo=timezone.utc)
-            delta = now - c_date
-            result["age_days"] = max(0, delta.days)
-        elif c_date:
-            result["creation_date"] = str(c_date)[:10]
-
-        # Expiration Date
-        e_date = w.expiration_date
-        if isinstance(e_date, list) and len(e_date) > 0:
-            e_date = e_date[0]
-        if isinstance(e_date, datetime):
-            result["expiration_date"] = e_date.strftime("%Y-%m-%d")
-        elif e_date:
-            result["expiration_date"] = str(e_date)[:10]
-
-    except Exception:
-        # WHOIS server down, blocked by rate limit, or unsupported TLD
-        result["registrar"] = "Not available"
-        result["creation_date"] = "Not available"
-        result["expiration_date"] = "Not available"
-        result["status"] = "Lookup failed or queried registrar blocked request"
+    result["status"] = (
+        "WHOIS lookup unavailable: the client cannot guarantee a bounded lookup."
+    )
 
     return result

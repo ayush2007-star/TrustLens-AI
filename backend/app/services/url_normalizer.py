@@ -43,16 +43,23 @@ def normalize_url(raw_url: str) -> Dict[str, Any]:
     if scheme not in ("http", "https"):
         raise ValueError(f"Unsupported URI scheme: '{scheme}'. Only HTTP and HTTPS are permitted.")
 
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError(
+            "URL contains embedded userinfo/credentials and is not allowed for passive inspection. "
+            "Remove the username or password before submitting the target."
+        )
+
     hostname = (parsed.hostname or "").lower().strip()
     if not hostname:
         raise ValueError("Could not extract a valid hostname from the submitted target.")
 
     # Remove default port
     port = parsed.port
-    netloc = hostname
+    host_for_url = f"[{hostname}]" if ":" in hostname else hostname
+    netloc = host_for_url
     if port:
         if (scheme == "http" and port != 80) or (scheme == "https" and port != 443):
-            netloc = f"{hostname}:{port}"
+            netloc = f"{host_for_url}:{port}"
 
     # Normalize path
     path = parsed.path or "/"
@@ -62,8 +69,17 @@ def normalize_url(raw_url: str) -> Dict[str, Any]:
     normalized = urllib.parse.urlunsplit((scheme, netloc, path, parsed.query, ""))
 
     # Extract base domain & subdomains (simple robust heuristic without external network dependency)
+    try:
+        ipaddress.ip_address(hostname)
+        is_ip_address = True
+    except ValueError:
+        is_ip_address = False
+
     parts = hostname.split('.')
-    if len(parts) >= 2:
+    if is_ip_address:
+        base_domain = hostname
+        subdomains = []
+    elif len(parts) >= 2:
         # Check two-part TLDs like co.uk, com.au
         if len(parts) >= 3 and parts[-2] in ["co", "com", "org", "net", "edu", "gov"] and len(parts[-1]) == 2:
             base_domain = ".".join(parts[-3:])
@@ -131,7 +147,7 @@ def analyze_url_heuristics(parsed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         })
 
     # 3. Embedded user credentials (@ symbol)
-    if parsed_info["has_credentials"] or "@" in raw_url:
+    if parsed_info["has_credentials"]:
         findings.append({
             "category": "DECEPTIVE_PATTERN",
             "finding_title": "Embedded Userinfo / Deceptive @ Symbol",

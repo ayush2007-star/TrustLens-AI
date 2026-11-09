@@ -136,7 +136,7 @@ class ThreatIntelMatch(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     investigation_id = Column(String(36), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    source = Column(String(50), nullable=False) # URLhaus, PhishTank, OpenPhish, VirusTotal, TrustLens Heuristics
+    source = Column(String(50), nullable=False) # URLhaus, VirusTotal, unavailable providers, or synthetic fixtures
     is_available = Column(Boolean, default=True)
     is_match = Column(Boolean, default=False)
     verdict = Column(String(50), nullable=False) # MALICIOUS, CLEAN, UNKNOWN, UNAVAILABLE

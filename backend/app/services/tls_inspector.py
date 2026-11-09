@@ -1,10 +1,11 @@
 import ssl
 import socket
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from app.services.ssrf_guard import validate_target_host
+from app.services.demo_data import is_synthetic_demo_host
 from app.config import settings
 
 def inspect_tls_certificate(hostname: str, port: int = 443) -> Dict[str, Any]:
@@ -35,14 +36,16 @@ def inspect_tls_certificate(hostname: str, port: int = 443) -> Dict[str, Any]:
     }
 
     # Handle synthetic demo domains
-    if hostname.endswith("example.com") or hostname.endswith("example.org") or hostname.endswith("example.net"):
+    if is_synthetic_demo_host(hostname):
         now = datetime.now(timezone.utc)
+        not_before = now - timedelta(days=30)
+        not_after = now + timedelta(days=365)
         result.update({
             "is_valid": True,
             "status_text": "Valid for inspected hostname (Synthetic Benchmark)",
-            "not_before": datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            "not_after": datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
-            "days_remaining": 400,
+            "not_before": not_before,
+            "not_after": not_after,
+            "days_remaining": (not_after - now).days,
             "subject": {"commonName": hostname, "organization": "Internet Assigned Numbers Authority"},
             "issuer": {"commonName": "DigiCert Global Root G2", "organization": "DigiCert Inc"},
             "san_list": [hostname, f"*.{hostname}"],
@@ -55,9 +58,16 @@ def inspect_tls_certificate(hostname: str, port: int = 443) -> Dict[str, Any]:
         })
         return result
 
-    # SSRF guard
-    is_safe, error_msg, _ = validate_target_host(hostname)
-    if not is_safe:
+    # SSRF guard and port policy
+    if port not in (80, 443):
+        result["status_text"] = "Blocked by SSRF Policy"
+        result["connection_errors"].append(
+            f"Passive HTTPS inspection is limited to ports 80 and 443; port {port} is not allowed."
+        )
+        return result
+
+    is_safe, error_msg, resolved_ips = validate_target_host(hostname)
+    if not is_safe or not resolved_ips:
         result["status_text"] = "Blocked by SSRF Policy"
         result["connection_errors"].append(error_msg)
         return result
@@ -71,7 +81,7 @@ def inspect_tls_certificate(hostname: str, port: int = 443) -> Dict[str, Any]:
     ssl_error_detail = None
     
     try:
-        with socket.create_connection((hostname, port), timeout=settings.REQUEST_TIMEOUT_SECONDS) as sock:
+        with socket.create_connection((resolved_ips[0], port), timeout=settings.REQUEST_TIMEOUT_SECONDS) as sock:
             with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
                 cert_der = ssock.getpeercert(binary_form=True)
                 tls_version_str = ssock.version() or "TLSv1.2"
@@ -105,7 +115,7 @@ def inspect_tls_certificate(hostname: str, port: int = 443) -> Dict[str, Any]:
     if not cert_der:
         try:
             unverified_ctx = ssl._create_unverified_context()
-            with socket.create_connection((hostname, port), timeout=settings.REQUEST_TIMEOUT_SECONDS) as sock:
+            with socket.create_connection((resolved_ips[0], port), timeout=settings.REQUEST_TIMEOUT_SECONDS) as sock:
                 with unverified_ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
                     cert_der = ssock.getpeercert(binary_form=True)
                     tls_version_str = ssock.version() or "TLS"
@@ -165,24 +175,30 @@ def inspect_tls_certificate(hostname: str, port: int = 443) -> Dict[str, Any]:
         except x509.ExtensionNotFound:
             result["san_list"] = []
 
-        # Check hostname match against SANs and Subject CommonName
+        # Check hostname match against SANs and Subject CommonName with SAN precedence.
         lower_host = hostname.lower()
         matched = False
-        candidates = list(result["san_list"])
-        if "commonName" in subject_dict:
-            candidates.append(subject_dict["commonName"])
-            
+        san_candidates = list(result["san_list"])
+        if san_candidates:
+            candidates = san_candidates
+        elif "commonName" in subject_dict:
+            candidates = [subject_dict["commonName"]]
+        else:
+            candidates = []
+
         for cand in candidates:
             cand_lower = cand.lower()
             if cand_lower == lower_host:
                 matched = True
                 break
-            # Wildcard matching *.domain.com
+            # Wildcard matching *.domain.com matches exactly one hostname label.
             if cand_lower.startswith("*."):
                 suffix = cand_lower[2:]
-                if lower_host.endswith(suffix) and lower_host.count(".") == suffix.count(".") + 1:
-                    matched = True
-                    break
+                if lower_host.endswith("." + suffix):
+                    prefix = lower_host[:-(len(suffix) + 1)]
+                    if prefix and "." not in prefix and prefix != "":
+                        matched = True
+                        break
                     
         result["hostname_match"] = matched
         if not matched and result["is_valid"]:

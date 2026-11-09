@@ -1,7 +1,10 @@
-import httpx
+import http.client
 import urllib.parse
+from http.cookies import SimpleCookie
 from typing import Dict, Any, List
-from app.services.ssrf_guard import validate_target_host
+from app.services.safe_http import safe_request
+from app.services.demo_data import is_synthetic_demo_host
+from app.services.ssrf_guard import SSRFSecurityError
 from app.config import settings
 
 def assess_website_security(target_url: str) -> Dict[str, Any]:
@@ -14,7 +17,7 @@ def assess_website_security(target_url: str) -> Dict[str, Any]:
     scheme = parsed.scheme or "https"
 
     result = {
-        "https_available": (scheme == "https"),
+        "https_available": False,
         "http_status": None,
         "security_headers": {},
         "cookies": [],
@@ -29,7 +32,7 @@ def assess_website_security(target_url: str) -> Dict[str, Any]:
     }
 
     # Synthetic demo handling
-    if hostname.endswith("example.com") or hostname.endswith("example.org") or hostname.endswith("example.net"):
+    if is_synthetic_demo_host(hostname):
         result.update({
             "https_available": True,
             "http_status": 200,
@@ -57,34 +60,31 @@ def assess_website_security(target_url: str) -> Dict[str, Any]:
         return result
 
     # SSRF guard
-    is_safe, error_msg, _ = validate_target_host(hostname)
-    if not is_safe:
-        result["limitations"].append(f"Scan aborted: {error_msg}")
-        return result
-
     headers_dict = {}
     cookies_list = []
 
     try:
-        with httpx.Client(timeout=settings.REQUEST_TIMEOUT_SECONDS, follow_redirects=True, verify=False) as client:
-            resp = client.get(target_url, headers={"User-Agent": "TrustLens-AI-PassiveAuditor/1.0"})
-            result["http_status"] = resp.status_code
-            result["https_available"] = str(resp.url).startswith("https://")
-            
-            # Extract headers (lowercased keys)
-            for k, v in resp.headers.items():
-                headers_dict[k.lower()] = v
-
-            # Extract cookies
-            for cookie in resp.cookies.jar:
+        resp = safe_request(
+            "GET",
+            target_url,
+            headers={"User-Agent": "TrustLens-AI-PassiveAuditor/1.0"},
+            max_bytes=settings.MAX_RESPONSE_BYTES,
+        )
+        result["http_status"] = resp.status_code
+        result["https_available"] = scheme == "https"
+        for raw_cookie in resp.set_cookie_headers:
+            parsed_cookie = SimpleCookie()
+            parsed_cookie.load(raw_cookie)
+            for name, cookie in parsed_cookie.items():
                 cookies_list.append({
-                    "name": cookie.name,
-                    "domain": cookie.domain,
-                    "path": cookie.path,
-                    "secure": cookie.secure,
-                    "httponly": getattr(cookie, "has_nonstandard_attr", lambda x: False)("HttpOnly") or "httponly" in str(resp.headers.get("set-cookie", "")).lower()
+                    "name": name,
+                    "domain": cookie["domain"],
+                    "path": cookie["path"],
+                    "secure": bool(cookie["secure"]),
+                    "httponly": bool(cookie["httponly"]),
                 })
-    except Exception as e:
+        headers_dict = resp.headers
+    except (SSRFSecurityError, OSError, http.client.HTTPException, ValueError) as e:
         result["limitations"].append(f"HTTP passive request failed: {str(e)[:100]}")
         return result
 
@@ -177,24 +177,23 @@ def assess_website_security(target_url: str) -> Dict[str, Any]:
         })
 
     # 8. Check robots.txt & security.txt passively
-    base_origin = f"{scheme}://{hostname}"
+    base_origin = f"{scheme}://{parsed.netloc}"
     try:
-        with httpx.Client(timeout=4.0, verify=False) as quick_client:
-            r_robots = quick_client.head(f"{base_origin}/robots.txt")
-            if r_robots.status_code == 200:
-                result["robots_txt_status"] = "Present (HTTP 200)"
-            elif r_robots.status_code == 404:
-                result["robots_txt_status"] = "Not Found (HTTP 404)"
-            else:
-                result["robots_txt_status"] = f"HTTP {r_robots.status_code}"
+        r_robots = safe_request("HEAD", f"{base_origin}/robots.txt")
+        if r_robots.status_code == 200:
+            result["robots_txt_status"] = "Present (HTTP 200)"
+        elif r_robots.status_code == 404:
+            result["robots_txt_status"] = "Not Found (HTTP 404)"
+        else:
+            result["robots_txt_status"] = f"HTTP {r_robots.status_code}"
 
-            r_sec = quick_client.head(f"{base_origin}/.well-known/security.txt")
-            if r_sec.status_code == 200:
-                result["security_txt_status"] = "Present (HTTP 200 / RFC 9116)"
-            else:
-                result["security_txt_status"] = "Not Found"
-    except Exception:
-        pass
+        r_sec = safe_request("HEAD", f"{base_origin}/.well-known/security.txt")
+        if r_sec.status_code == 200:
+            result["security_txt_status"] = "Present (HTTP 200 / RFC 9116)"
+        else:
+            result["security_txt_status"] = f"HTTP {r_sec.status_code}"
+    except (SSRFSecurityError, OSError, http.client.HTTPException, ValueError) as exc:
+        result["limitations"].append(f"robots.txt/security.txt checks failed: {str(exc)[:100]}")
 
     result["passive_findings"] = findings
     return result

@@ -1,99 +1,81 @@
 import ipaddress
 import socket
-from urllib.parse import urlparse
-from typing import Tuple, List
+from typing import List, Tuple
 
-# Blocked IP networks
-BLOCKED_NETWORKS = [
-    ipaddress.ip_network("0.0.0.0/8"),          # Current network
-    ipaddress.ip_network("10.0.0.0/8"),         # Private-use (RFC 1918)
-    ipaddress.ip_network("100.64.0.0/10"),      # Shared address space
-    ipaddress.ip_network("127.0.0.0/8"),        # Loopback
-    ipaddress.ip_network("169.254.0.0/16"),     # Link-local
-    ipaddress.ip_network("172.16.0.0/12"),      # Private-use (RFC 1918)
-    ipaddress.ip_network("192.0.0.0/24"),       # IETF Protocol Assignments
-    ipaddress.ip_network("192.0.2.0/24"),       # Documentation (TEST-NET-1)
-    ipaddress.ip_network("192.88.99.0/24"),     # 6to4 Relay Anycast
-    ipaddress.ip_network("192.168.0.0/16"),     # Private-use (RFC 1918)
-    ipaddress.ip_network("198.18.0.0/15"),      # Network benchmark tests
-    ipaddress.ip_network("198.51.100.0/24"),    # Documentation (TEST-NET-2)
-    ipaddress.ip_network("203.0.113.0/24"),     # Documentation (TEST-NET-3)
-    ipaddress.ip_network("224.0.0.0/4"),        # Multicast
-    ipaddress.ip_network("240.0.0.0/4"),        # Reserved
-    ipaddress.ip_network("255.255.255.255/32"), # Broadcast
-    # IPv6 blocked
-    ipaddress.ip_network("::/128"),             # Unspecified
-    ipaddress.ip_network("::1/128"),            # Loopback
-    ipaddress.ip_network("::ffff:0:0/96"),      # IPv4-mapped IPv6
-    ipaddress.ip_network("64:ff9b::/96"),       # IPv4/IPv6 translation
-    ipaddress.ip_network("100::/64"),           # Discard prefix
-    ipaddress.ip_network("2001::/23"),          # IETF Protocol
-    ipaddress.ip_network("fc00::/7"),           # Unique Local Address (ULA)
-    ipaddress.ip_network("fe80::/10"),          # Link-local unicast
-    ipaddress.ip_network("ff00::/8"),           # Multicast
-]
+from app.services.bounded_dns import DNS_RESOLUTION_TIMEOUT_SECONDS, bounded_dns_call
+
+
+SAFE_HTTP_PORTS = {80, 443}
+
 
 class SSRFSecurityError(Exception):
     """Raised when an SSRF attempt is detected."""
-    pass
+
+
+def is_safe_port(scheme: str, port: int | None) -> bool:
+    """Passive inspection is limited to standard HTTP/HTTPS ports to avoid arbitrary service exposure."""
+    if port is None:
+        port = 443 if scheme.lower() == "https" else 80
+    return port in SAFE_HTTP_PORTS
+
 
 def is_ip_blocked(ip_str: str) -> bool:
-    """Check if an IP string falls into private, loopback, or reserved ranges."""
+    """Allow only globally routable addresses for outbound target connections."""
     try:
         ip = ipaddress.ip_address(ip_str)
-        # Handle IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
         if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
             ip = ip.ipv4_mapped
-            
-        for net in BLOCKED_NETWORKS:
-            if ip in net:
-                return True
-        return ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local
+        return not ip.is_global
     except ValueError:
         return True
 
+
 def validate_target_host(hostname_or_ip: str) -> Tuple[bool, str, List[str]]:
     """
-    Validates that a hostname or IP is not pointing to private/internal infrastructure.
-    Returns (is_safe, error_message, resolved_ips).
+    Resolve a target once and return only public addresses suitable for pinned use.
+    Any blocked or unresolved address rejects the hostname to prevent mixed-answer
+    DNS responses from bypassing the network policy.
     """
     clean_host = hostname_or_ip.strip().lower()
-    
-    # Strip port if present
-    if ":" in clean_host and not clean_host.startswith("["):
-        clean_host = clean_host.split(":")[0]
-    elif clean_host.startswith("[") and "]" in clean_host:
-        clean_host = clean_host[1:clean_host.index("]")]
-        
-    # Check known local names
-    local_keywords = ["localhost", "localdomain", "broadcasthost", ".local", ".internal", ".lan", ".home"]
-    for kw in local_keywords:
-        if clean_host == kw or clean_host.endswith(kw):
-            return False, f"Target hostname '{clean_host}' resolves to local/internal network namespace.", []
+    if clean_host.startswith("[") and clean_host.endswith("]"):
+        clean_host = clean_host[1:-1]
+    clean_host = clean_host.rstrip(".")
+    if not clean_host:
+        return False, "Target hostname is empty.", []
 
-    # Try parsing direct IP
+    local_names = ("localhost", "localdomain", "broadcasthost", "local", "internal", "lan", "home")
+    if any(clean_host == name or clean_host.endswith(f".{name}") for name in local_names):
+        return False, f"Target hostname '{clean_host}' is in a local/internal namespace.", []
+
     try:
-        ip = ipaddress.ip_address(clean_host)
-        if is_ip_blocked(str(ip)):
-            return False, f"Direct IP address {clean_host} belongs to a blocked/private network range.", [str(ip)]
-        return True, "", [str(ip)]
+        address = ipaddress.ip_address(clean_host)
     except ValueError:
-        pass # Not a raw IP, it's a hostname
+        address = None
 
-    # Resolve via DNS and check every resolved address
-    resolved_ips: List[str] = []
+    if address is not None:
+        if is_ip_blocked(str(address)):
+            return False, f"IP address {clean_host} is blocked because it is not globally routable.", [str(address)]
+        return True, "", [str(address)]
+
     try:
-        addr_info = socket.getaddrinfo(clean_host, None)
-        for item in addr_info:
-            ip_val = item[4][0]
-            if ip_val not in resolved_ips:
-                resolved_ips.append(ip_val)
-                if is_ip_blocked(ip_val):
-                    return False, f"Hostname '{clean_host}' resolves to private/internal address {ip_val}.", resolved_ips
-    except socket.gaierror as e:
-        # DNS could not resolve, which is safe from SSRF but means host is unreachable
-        return True, f"DNS resolution failed: {str(e)}", []
-    except Exception as e:
-        return False, f"Resolution error: {str(e)}", []
+        address_info = bounded_dns_call(
+            socket.getaddrinfo,
+            clean_host,
+            None,
+            timeout=DNS_RESOLUTION_TIMEOUT_SECONDS,
+            type=socket.SOCK_STREAM,
+        )
+    except TimeoutError:
+        return False, f"DNS resolution timed out for '{clean_host}'.", []
+    except (socket.gaierror, OSError) as exc:
+        return False, f"DNS resolution failed for '{clean_host}': {exc}", []
+
+    resolved_ips = list(dict.fromkeys(item[4][0] for item in address_info))
+    if not resolved_ips:
+        return False, f"DNS returned no addresses for '{clean_host}'.", []
+
+    blocked_ips = [ip for ip in resolved_ips if is_ip_blocked(ip)]
+    if blocked_ips:
+        return False, f"Hostname '{clean_host}' resolves to a restricted address.", resolved_ips
 
     return True, "", resolved_ips

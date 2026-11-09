@@ -24,8 +24,36 @@ from app.services.tls_inspector import inspect_tls_certificate
 from app.services.security_headers import assess_website_security
 from app.services.threat_intel_adapters import query_threat_intelligence
 from app.services.risk_engine import calculate_risk_classification
+from app.services.demo_data import is_synthetic_demo_host
 
 router = APIRouter(prefix="/api", tags=["Investigations"])
+
+def _normalize_request_url(url: str):
+    try:
+        return normalize_url(url.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"URL Normalization Failed: {str(exc)}") from exc
+
+
+@router.post("/analyze-tls", response_model=TLSReportSchema)
+def analyze_tls(payload: InvestigationRequest):
+    parsed_url = _normalize_request_url(payload.url)
+    if parsed_url["scheme"] != "https":
+        return {
+            "is_valid": False,
+            "status_text": "Not inspected: target uses HTTP",
+            "hostname_match": False,
+            "connection_errors": [],
+            "limitation_notes": "TLS is not available for an HTTP target.",
+        }
+    return inspect_tls_certificate(parsed_url["hostname"], port=parsed_url["port"] or 443)
+
+
+@router.post("/analyze-security", response_model=SecurityAssessmentSchema)
+def analyze_security(payload: InvestigationRequest):
+    parsed_url = _normalize_request_url(payload.url)
+    return assess_website_security(parsed_url["normalized_url"])
+
 
 @router.post("/investigations", response_model=InvestigationResponse)
 @router.post("/analyze-url", response_model=InvestigationResponse)
@@ -44,17 +72,14 @@ def run_investigation(payload: InvestigationRequest, db: Session = Depends(get_d
     if not raw_url:
         raise HTTPException(status_code=400, detail="Target URL cannot be empty.")
 
-    try:
-        parsed_norm = normalize_url(raw_url)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=f"URL Normalization Failed: {str(e)}")
+    parsed_norm = _normalize_request_url(raw_url)
 
     normalized_url = parsed_norm["normalized_url"]
     hostname = parsed_norm["hostname"]
     base_domain = parsed_norm["base_domain"]
 
     # Check synthetic demo tag
-    is_synthetic = hostname.endswith("example.com") or hostname.endswith("example.org") or hostname.endswith("example.net")
+    is_synthetic = is_synthetic_demo_host(hostname)
 
     # Step A: Heuristic findings
     url_findings_raw = analyze_url_heuristics(parsed_norm)
@@ -71,8 +96,16 @@ def run_investigation(payload: InvestigationRequest, db: Session = Depends(get_d
     redirect_data = trace_redirects_safely(normalized_url)
 
     # Step D: TLS Certificate Inspection
-    port = parsed_norm["port"] or 443
-    tls_raw = inspect_tls_certificate(hostname, port=port)
+    if parsed_norm["scheme"] == "https":
+        tls_raw = inspect_tls_certificate(hostname, port=parsed_norm["port"] or 443)
+    else:
+        tls_raw = {
+            "is_valid": False,
+            "status_text": "Not inspected: target uses HTTP",
+            "hostname_match": False,
+            "connection_errors": [],
+            "limitation_notes": "TLS is not available for an HTTP target.",
+        }
 
     # Step E: Passive Security Assessment
     sec_raw = assess_website_security(normalized_url)

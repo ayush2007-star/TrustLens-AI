@@ -4,10 +4,10 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models.investigation import Investigation, URLFinding
 from app.models.threat_report import ThreatReport
-from app.models.registry import ThreatRegistryEntry
 from app.schemas.dashboard import DashboardStatsResponse
 from app.schemas.investigation import InvestigationSummary
 from app.schemas.threat_report import ThreatReportResponse
+from app.services.registry_service import count_verified_registry_blocks
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -21,8 +21,6 @@ def get_dashboard_statistics(db: Session = Depends(get_db)):
     high_risk_inv = db.query(func.count(Investigation.id)).filter(Investigation.overall_risk == "HIGH RISK").scalar() or 0
     confirmed_malicious = (
         db.query(func.count(Investigation.id)).filter(Investigation.overall_risk == "CONFIRMED MALICIOUS").scalar() or 0
-    ) + (
-        db.query(func.count(ThreatReport.id)).filter(ThreatReport.verification_status == "Supported by Evidence").scalar() or 0
     )
     
     suspicious_count = (
@@ -31,7 +29,7 @@ def get_dashboard_statistics(db: Session = Depends(get_db)):
         db.query(func.count(ThreatReport.id)).filter(ThreatReport.verification_status.in_(["Pending", "Under Review"])).scalar() or 0
     )
 
-    verified_blocks = db.query(func.count(ThreatRegistryEntry.id)).scalar() or 0
+    verified_blocks = count_verified_registry_blocks(db)
 
     # Risk Distribution
     risk_counts = db.query(

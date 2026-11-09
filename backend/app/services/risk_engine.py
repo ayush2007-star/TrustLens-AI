@@ -26,10 +26,16 @@ def calculate_risk_classification(
 
     # Check for INCONCLUSIVE conditions (e.g. host completely unreachable, no DNS, no data)
     has_a_records = bool(domain_info.get("a_records")) or bool(domain_info.get("aaaa_records"))
-    has_tls = bool(tls_report.get("is_valid")) or bool(tls_report.get("status_text") and tls_report["status_text"] != "Insufficient information")
+    has_tls = bool(
+        tls_report.get("is_valid")
+        or tls_report.get("subject")
+        or tls_report.get("issuer")
+        or tls_report.get("san_list")
+    )
+    has_available_intel = any(match.get("is_available") for match in threat_intel_matches)
     dns_nxdomain = any("NXDOMAIN" in str(flag) for flag in domain_info.get("suspicious_dns_flags", []))
 
-    if not has_a_records and not has_tls and not threat_intel_matches:
+    if not has_a_records and not has_tls and not has_available_intel and not findings:
         return (
             "INCONCLUSIVE",
             10,
@@ -41,7 +47,15 @@ def calculate_risk_classification(
     # Check for CONFIRMED MALICIOUS via authoritative threat intelligence
     confirmed_sources = []
     for match in threat_intel_matches:
-        if match.get("is_match") and match.get("verdict") == "MALICIOUS":
+        details = match.get("details") or {}
+        if (
+            match.get("source") == "URLhaus (abuse.ch)"
+            and match.get("is_available")
+            and match.get("is_match")
+            and match.get("verdict") == "MALICIOUS"
+            and details.get("urlhaus_reference")
+            and not details.get("synthetic_simulation")
+        ):
             confirmed_sources.append(match.get("source", "Threat Intel"))
 
     if confirmed_sources:
@@ -103,6 +117,17 @@ def calculate_risk_classification(
             score += 15
             medium_count += 1
 
+    # Non-authoritative feed results are risk signals, not a confirmed verdict.
+    for match in threat_intel_matches:
+        if not match.get("is_available") or not match.get("is_match"):
+            continue
+        if match.get("verdict") == "MALICIOUS":
+            score += 25
+            high_count += 1
+        elif match.get("verdict") == "SUSPICIOUS":
+            score += 15
+            medium_count += 1
+
     # Clamp score between 0 and 100
     score = min(score, 100)
 
@@ -111,15 +136,15 @@ def calculate_risk_classification(
         overall_risk = "HIGH RISK"
         confidence = "HIGH"
         summary = (
-            f"Multiple significant security anomalies detected (Score: {score}/100). "
-            f"Observed {critical_count} critical and {high_count} high-severity indicators including suspicious structural patterns or identity mismatches."
+            f"High-risk evidence detected (Score: {score}/100): {critical_count} critical, "
+            f"{high_count} high, and {medium_count} medium indicators."
         )
     elif high_count == 1 or medium_count >= 2 or score >= 35:
         overall_risk = "SUSPICIOUS"
         confidence = "MEDIUM"
         summary = (
-            f"Suspicious characteristics observed (Score: {score}/100). "
-            f"Observed {medium_count} moderate-severity indicator(s). Exercise caution before entering credentials."
+            f"Suspicious characteristics observed (Score: {score}/100): {high_count} high and "
+            f"{medium_count} medium indicators. Exercise caution before entering credentials."
         )
     else:
         overall_risk = "LOW RISK"

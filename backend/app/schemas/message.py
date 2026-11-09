@@ -19,8 +19,8 @@ class MessageAnalysisResponse(BaseModel):
     confidence: str # LOW, MEDIUM, HIGH
     analyzed_via: str # deterministic, gemini, openai
     summary: str
-    indicators: List[DetectedIndicator] = []
+    indicators: List[DetectedIndicator] = Field(default_factory=list)
     explanation: str
-    recommended_precautions: List[str] = []
-    limitations: List[str] = []
+    recommended_precautions: List[str] = Field(default_factory=list)
+    limitations: List[str] = Field(default_factory=list)
     created_at: datetime

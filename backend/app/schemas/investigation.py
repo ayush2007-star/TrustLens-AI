@@ -19,13 +19,13 @@ class DomainInfoSchema(BaseModel):
     creation_date: Optional[str] = None
     expiration_date: Optional[str] = None
     age_days: Optional[int] = None
-    nameservers: List[str] = []
-    a_records: List[str] = []
-    aaaa_records: List[str] = []
-    mx_records: List[str] = []
-    txt_records: List[str] = []
-    suspicious_dns_flags: List[str] = []
-    raw_details: Dict[str, Any] = {}
+    nameservers: List[str] = Field(default_factory=list)
+    a_records: List[str] = Field(default_factory=list)
+    aaaa_records: List[str] = Field(default_factory=list)
+    mx_records: List[str] = Field(default_factory=list)
+    txt_records: List[str] = Field(default_factory=list)
+    suspicious_dns_flags: List[str] = Field(default_factory=list)
+    raw_details: Dict[str, Any] = Field(default_factory=dict)
 
 class TLSReportSchema(BaseModel):
     is_valid: bool
@@ -33,27 +33,27 @@ class TLSReportSchema(BaseModel):
     not_before: Optional[datetime] = None
     not_after: Optional[datetime] = None
     days_remaining: Optional[int] = None
-    subject: Dict[str, Any] = {}
-    issuer: Dict[str, Any] = {}
-    san_list: List[str] = []
+    subject: Dict[str, Any] = Field(default_factory=dict)
+    issuer: Dict[str, Any] = Field(default_factory=dict)
+    san_list: List[str] = Field(default_factory=list)
     signature_algorithm: Optional[str] = None
     key_type: Optional[str] = None
     key_size: Optional[int] = None
     tls_version: Optional[str] = None
     hostname_match: bool
-    connection_errors: List[str] = []
-    chain_info: List[Dict[str, Any]] = []
+    connection_errors: List[str] = Field(default_factory=list)
+    chain_info: List[Dict[str, Any]] = Field(default_factory=list)
     limitation_notes: Optional[str] = None
 
 class SecurityAssessmentSchema(BaseModel):
     https_available: bool
     http_status: Optional[int] = None
-    security_headers: Dict[str, Any] = {}
-    cookies: List[Dict[str, Any]] = []
+    security_headers: Dict[str, Any] = Field(default_factory=dict)
+    cookies: List[Dict[str, Any]] = Field(default_factory=list)
     robots_txt_status: str
     security_txt_status: str
-    passive_findings: List[Dict[str, Any]] = []
-    limitations: List[str] = []
+    passive_findings: List[Dict[str, Any]] = Field(default_factory=list)
+    limitations: List[str] = Field(default_factory=list)
 
 class ThreatIntelMatchSchema(BaseModel):
     source: str
@@ -61,7 +61,7 @@ class ThreatIntelMatchSchema(BaseModel):
     is_match: bool
     verdict: str
     confidence: str
-    details: Dict[str, Any] = {}
+    details: Dict[str, Any] = Field(default_factory=dict)
     checked_at: Optional[datetime] = None
 
 class InvestigationResponse(BaseModel):
@@ -75,16 +75,16 @@ class InvestigationResponse(BaseModel):
     risk_score: int
     confidence: str
     summary: str
-    analysis_limitations: List[str] = []
+    analysis_limitations: List[str] = Field(default_factory=list)
     is_synthetic_demo: bool = False
     status: str
     created_at: datetime
     
     domain_info: Optional[DomainInfoSchema] = None
-    findings: List[URLFindingSchema] = []
+    findings: List[URLFindingSchema] = Field(default_factory=list)
     tls_report: Optional[TLSReportSchema] = None
     security_assessment: Optional[SecurityAssessmentSchema] = None
-    threat_intel_matches: List[ThreatIntelMatchSchema] = []
+    threat_intel_matches: List[ThreatIntelMatchSchema] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

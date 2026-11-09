@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, JSON
+from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, JSON, UniqueConstraint
 from app.database import Base
 
 def generate_uuid():
@@ -33,6 +33,27 @@ class ThreatReport(Base):
     tags = Column(JSON, default=list)
     created_at = Column(DateTime, default=utc_now, index=True)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+
+class CommunityAbuseEvent(Base):
+    __tablename__ = "community_abuse_events"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    client_key = Column(String(64), nullable=False, index=True)
+    action = Column(String(20), nullable=False, index=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False, index=True)
+
+
+class ThreatReportVote(Base):
+    __tablename__ = "threat_report_votes"
+    __table_args__ = (
+        UniqueConstraint("report_id", "client_key", name="uq_threat_report_vote_client"),
+    )
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    report_id = Column(String(36), nullable=False, index=True)
+    client_key = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class ThreatRelationship(Base):

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/registry", tags=["Digital Trust Registry"])
 @router.get("", response_model=List[RegistryEntryResponse])
 def get_registry_ledger(db: Session = Depends(get_db)):
     """
-    Returns the complete append-only, tamper-evident cryptographic trust ledger.
+    Returns the current local, tamper-evident cryptographic hash ledger.
     Every entry contains its canonical data hash, previous block hash, and chained block hash.
     """
     entries = db.query(ThreatRegistryEntry).order_by(ThreatRegistryEntry.block_index.asc()).all()
@@ -28,7 +28,7 @@ def get_registry_ledger(db: Session = Depends(get_db)):
 @router.post("/register", response_model=RegistryEntryResponse)
 def register_threat_report(payload: RegisterReportRequest, db: Session = Depends(get_db)):
     """
-    Registers a threat report onto the immutable local cryptographic ledger.
+    Registers a threat report in the local cryptographic hash chain.
     Computes deterministic SHA-256 fingerprint and cryptographically chains it to previous block.
     """
     try:
@@ -36,16 +36,14 @@ def register_threat_report(payload: RegisterReportRequest, db: Session = Depends
         return entry
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 
 @router.get("/verify/{report_id}", response_model=RegistryVerificationResponse)
 def verify_registry_fingerprint(report_id: str, db: Session = Depends(get_db)):
     """
     Performs real-time cryptographic verification of a threat report.
-    Re-hashes the canonical report in database and checks against the immutable chained block hash.
-    Detects any unauthorized modification or ledger tampering.
+    Re-hashes the canonical report and validates the stored local hash chain.
+    Detects inconsistent report data or links in the stored hash chain.
     """
     result = verify_report_integrity(db, report_id)
     return result

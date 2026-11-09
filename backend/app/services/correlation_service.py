@@ -5,8 +5,8 @@ from app.models.threat_report import ThreatReport, ThreatRelationship
 
 def build_threat_correlation_graph(db: Session) -> Dict[str, Any]:
     """
-    Computes deterministic correlation clusters across investigations, community threat reports,
-    shared IP infrastructure, nameservers, and brand typosquatting targets.
+    Computes deterministic relationships across investigations, community reports,
+    shared IP infrastructure, and nameservers.
     
     Returns nodes and edges formatted for visualization.
     """
@@ -17,6 +17,7 @@ def build_threat_correlation_graph(db: Session) -> Dict[str, Any]:
     edges: List[Dict[str, Any]] = []
     
     seen_nodes: Set[str] = set()
+    seen_edges: Set[str] = set()
 
     def add_node(node_id: str, label: str, node_type: str, risk: str = "INFO", details: Dict[str, Any] = None):
         if node_id not in seen_nodes:
@@ -31,6 +32,9 @@ def build_threat_correlation_graph(db: Session) -> Dict[str, Any]:
 
     def add_edge(source: str, target: str, relationship: str, evidence: str):
         edge_id = f"{source}->{target}:{relationship}"
+        if edge_id in seen_edges:
+            return
+        seen_edges.add(edge_id)
         edges.append({
             "id": edge_id,
             "source": source,
@@ -57,7 +61,9 @@ def build_threat_correlation_graph(db: Session) -> Dict[str, Any]:
             ip_node_id = f"ip:{inv.ip_address}"
             add_node(ip_node_id, inv.ip_address, "IP", risk="INFO")
             add_edge(domain_node_id, ip_node_id, "RESOLVES_TO", f"DNS A-record for {inv.domain}")
-            ip_to_domains.setdefault(inv.ip_address, []).append(domain_node_id)
+            domains_for_ip = ip_to_domains.setdefault(inv.ip_address, [])
+            if domain_node_id not in domains_for_ip:
+                domains_for_ip.append(domain_node_id)
 
         if inv.domain_info:
             for ns in (inv.domain_info.nameservers or []):
@@ -65,7 +71,9 @@ def build_threat_correlation_graph(db: Session) -> Dict[str, Any]:
                 ns_node_id = f"ns:{ns_clean}"
                 add_node(ns_node_id, ns_clean, "NAMESERVER", risk="INFO")
                 add_edge(domain_node_id, ns_node_id, "DELEGATED_TO", f"Authoritative NS for {inv.domain}")
-                ns_to_domains.setdefault(ns_clean, []).append(domain_node_id)
+                domains_for_ns = ns_to_domains.setdefault(ns_clean, [])
+                if domain_node_id not in domains_for_ns:
+                    domains_for_ns.append(domain_node_id)
 
     # Link Threat Reports
     for r in reports:
@@ -98,12 +106,27 @@ def build_threat_correlation_graph(db: Session) -> Dict[str, Any]:
                     )
                     correlations_found += 1
 
+    shared_nameserver_relationships = 0
+    for nameserver, domain_ids in ns_to_domains.items():
+        if len(domain_ids) > 1:
+            for i in range(len(domain_ids)):
+                for j in range(i + 1, len(domain_ids)):
+                    add_edge(
+                        domain_ids[i],
+                        domain_ids[j],
+                        "SHARED_NAMESERVER",
+                        f"Both domains use authoritative nameserver {nameserver}"
+                    )
+                    shared_nameserver_relationships += 1
+
     return {
         "nodes": nodes,
         "edges": edges,
         "summary": {
             "total_nodes": len(nodes),
             "total_edges": len(edges),
-            "shared_infrastructure_clusters": correlations_found
+            "shared_infrastructure_clusters": correlations_found + shared_nameserver_relationships,
+            "shared_ip_relationships": correlations_found,
+            "shared_nameserver_relationships": shared_nameserver_relationships,
         }
     }

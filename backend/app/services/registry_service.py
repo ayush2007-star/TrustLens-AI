@@ -40,10 +40,45 @@ def compute_sha256(content: str) -> str:
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
 
+def _registry_chain_is_valid(db: Session) -> bool:
+    entries = db.query(ThreatRegistryEntry).order_by(ThreatRegistryEntry.block_index.asc()).all()
+    expected_previous_hash = GENESIS_PREV_HASH
+    for expected_index, block in enumerate(entries):
+        if block.block_index != expected_index:
+            return False
+
+        report = db.query(ThreatReport).filter(ThreatReport.id == block.report_id).first()
+        if not report:
+            return False
+
+        canonical_payload = create_canonical_payload(report)
+        if compute_sha256(canonical_payload) != block.data_hash:
+            return False
+        if canonical_payload != block.canonical_payload:
+            return False
+
+        chain_material = (
+            f"{block.block_index}:{block.previous_hash}:{block.data_hash}:"
+            f"{format_utc_iso(block.registered_at)}"
+        )
+        if block.previous_hash != expected_previous_hash:
+            return False
+        if compute_sha256(chain_material) != block.chained_hash:
+            return False
+
+        expected_previous_hash = block.chained_hash
+    return True
+
+
+def count_verified_registry_blocks(db: Session) -> int:
+    entries = db.query(ThreatRegistryEntry).count()
+    return entries if entries and _registry_chain_is_valid(db) else 0
+
+
 def register_threat_report_on_chain(db: Session, report_id: str) -> ThreatRegistryEntry:
     """
-    Registers a threat report in the tamper-evident cryptographic hash registry.
-    Chains the block to the previous entry and records the immutable fingerprint.
+    Registers a threat report in the local tamper-evident hash chain.
+    The registry detects record changes but is not protected from full database rewrites.
     """
     report = db.query(ThreatReport).filter(ThreatReport.id == report_id).first()
     if not report:
@@ -53,6 +88,9 @@ def register_threat_report_on_chain(db: Session, report_id: str) -> ThreatRegist
     existing_entry = db.query(ThreatRegistryEntry).filter(ThreatRegistryEntry.report_id == report_id).first()
     if existing_entry:
         return existing_entry
+
+    if not _registry_chain_is_valid(db):
+        raise ValueError("Existing threat registry chain is invalid or has been tampered with. Registry append blocked.")
 
     # Get latest block to chain against
     latest_block = db.query(ThreatRegistryEntry).order_by(ThreatRegistryEntry.block_index.desc()).first()
@@ -128,21 +166,21 @@ def verify_report_integrity(db: Session, report_id: str) -> Dict[str, Any]:
     # 1. Recompute data hash from current report state in DB
     current_canonical = create_canonical_payload(report)
     computed_data_hash = compute_sha256(current_canonical)
-    
+
     # 2. Check if canonical payload stored in registry matches current report payload
-    is_data_tampered = (computed_data_hash != entry.data_hash)
+    is_data_tampered = (
+        computed_data_hash != entry.data_hash
+        or current_canonical != entry.canonical_payload
+    )
 
     # 3. Recompute chained hash from block details
     timestamp_str = format_utc_iso(entry.registered_at)
     chain_material = f"{entry.block_index}:{entry.previous_hash}:{entry.data_hash}:{timestamp_str}"
     computed_chained_hash = compute_sha256(chain_material)
-    is_chain_broken = (computed_chained_hash != entry.chained_hash)
-
-    # 4. Check previous hash connection
-    if entry.block_index > 0:
-        prev_block = db.query(ThreatRegistryEntry).filter(ThreatRegistryEntry.block_index == entry.block_index - 1).first()
-        if not prev_block or prev_block.chained_hash != entry.previous_hash:
-            is_chain_broken = True
+    is_chain_broken = (
+        computed_chained_hash != entry.chained_hash
+        or not _registry_chain_is_valid(db)
+    )
 
     is_tampered = is_data_tampered or is_chain_broken
 
@@ -150,14 +188,14 @@ def verify_report_integrity(db: Session, report_id: str) -> Dict[str, Any]:
         status = "TAMPER_DETECTED"
         details = (
             "CRYPTOGRAPHIC INTEGRITY VIOLATION DETECTED! "
-            f"The report content has been altered since registration or the blockchain/hash chain is broken. "
+            f"The report content has been altered since registration or the stored hash chain is broken. "
             f"Stored Hash: {entry.data_hash[:16]}..., Computed Hash: {computed_data_hash[:16]}..."
         )
     else:
         status = "VERIFIED_AUTHENTIC"
         details = (
             f"Cryptographic fingerprint verified. Report content precisely matches "
-            f"immutable Ledger Block #{entry.block_index}. Hash chain is intact."
+            f"stored registry entry #{entry.block_index}. The verified hash chain is intact."
         )
 
     return {

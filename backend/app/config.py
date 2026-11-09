@@ -1,5 +1,5 @@
 import json
-from typing import Any, List
+from typing import Any, List, Union
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./trustlens.db"
     APP_ACCESS_TOKEN: str = ""
     
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     VIRUSTOTAL_API_KEY: str = ""
     URLHAUS_API_ENABLED: bool = True
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> List[str]:
         if isinstance(v, str):
@@ -46,6 +46,8 @@ class Settings(BaseSettings):
                 except Exception:
                     pass
             return [origin.strip() for origin in cleaned.split(",") if origin.strip()]
+        if isinstance(v, list):
+            return [str(item).strip() for item in v if str(item).strip()]
         return v
 
     @model_validator(mode="after")

@@ -14,7 +14,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS
-        value: "http://localhost:5173,http://127.0.0.1:5173,https://trustlens-ai.vercel.app"
+        value: '["http://localhost:5173", "http://127.0.0.1:5173", "https://trustlens-ai.vercel.app"]'
       - key: APP_ACCESS_TOKEN
         generateValue: true
       - key: DATABASE_URL

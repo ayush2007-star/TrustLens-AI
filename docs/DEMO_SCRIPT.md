@@ -1,60 +1,53 @@
-# TrustLens AI — 3-Minute Live Demonstration Script
+# TrustLens AI — Three-Minute Demo Plan
 
-> **Theme:** Real Cyber Engineering Over Mockups.  
-> **Target Audience:** Hackathon Judges, Security Researchers, and Tech Leads.
+Use the reserved `.example` synthetic fixture and a synthetic message. Do not enter a real URL with private query values; live enabled providers may receive submitted URLs. The UI shows synthetic results as fixtures, not as live observations.
 
----
+## Timed walkthrough and narration
 
-### **[0:00 – 0:15] The Problem**
-- **Speaker:**  
-  "Every day, millions of users fall victim to online scams because of a dangerous myth: *'The lock icon means it's safe.'* Over 80% of active phishing websites now run on valid HTTPS certificates. At the same time, newly minted scam domains stay unlisted by major blocklists for days.  
-  Meet **TrustLens AI** — an AI-powered web threat detection and digital trust platform built on four core pillars: *Investigate. Understand. Verify. Protect.*"
+**0:00–0:20 — Problem and solution**
+“Phishing uses deceptive domains and incomplete threat feeds. HTTPS alone does not prove a site is safe. TrustLens combines bounded passive checks and explainable rules, while showing the evidence and limitations.”
 
----
+**0:20–1:10 — URL investigation**
+Open **Investigate URL** and submit `https://paypal-security-update.example.com/login`. Point out the synthetic-fixture label, URL-pattern findings, risk rationale, and provider availability. Explain that this reserved-domain result is synthetic and that the score is not a definitive verdict.
 
-### **[0:15 – 0:55] Live URL Investigation**
-- **Action:**  
-  Navigate to the **Investigate URL** tab.  
-  Paste: `https://paypal-security-update.example.com/login?token=urgent` and click **Investigate**.
-- **Speaker:**  
-  "Let's investigate this link. In under 2 seconds, TrustLens runs a multi-stage passive pipeline:
-  1. **URL Normalization & Deception Detection:** It identifies that 'paypal' appears in the hostname, but the registered base domain is `example.com` — a clear typosquatting impersonation attack. It also flags clustered authentication keywords.
-  2. **DNS & WHOIS Intelligence:** It resolves A-records and authoritative nameservers without leaking internal queries.
-  3. **SSRF-Protected Redirect Tracing:** Each hop is checked against private IP blocklists before following, strictly without executing untrusted JavaScript.
-  4. **The Verdict:** The explainable risk engine flags it as **HIGH RISK (Score: 85/100)** with line-by-line evidence."
+**1:10–1:40 — Scam-message analyzer**
+Open **Message Analyzer** and submit a synthetic message containing an urgent request and a reserved example URL. Show the indicators and precautions. State that analysis uses deterministic rules, not a trained ML model or LLM, and that stored content is redacted.
 
----
+**1:40–2:10 — Trust and infrastructure**
+Show **TLS Trust**, **Security Assessment**, and **Threat Correlation**. Explain that TLS-only and header-only checks do not create an investigation record. Clarify that graph edges represent observed report/domain, shared-IP, or shared-nameserver relationships—not proof of a shared operator.
 
-### **[0:55 – 1:20] TLS & Passive Security Assessment**
-- **Action:**  
-  Switch to the **TLS & Digital Trust** and **Security Assessment** tabs for this investigation.
-- **Speaker:**  
-  "Notice the TLS inspector. The site has an encrypted connection, but TrustLens highlights the critical distinction: **HTTPS confirms encryption, not business legitimacy.** It also reveals a hostname mismatch.  
-  Under passive security assessment, we see missing HSTS and lack of Content-Security-Policy headers — all evaluated without intrusive or aggressive exploits."
+**2:10–2:35 — Registry**
+Verify a seeded report in **Trust Registry**. Explain that the local SHA-256 chain detects record or chain inconsistencies but is not externally anchored and cannot prevent a full database rewrite.
 
----
+**2:35–3:00 — Limitations and close**
+“Threat feeds can be incomplete, provider checks may share submitted URLs, and heuristic results are not confirmed proof. TrustLens is a transparent triage demonstrator; a trained and independently evaluated ML model is not implemented.”
 
-### **[1:45 – 2:20] Collaborative Threat Intelligence & Correlation**
-- **Action:**  
-  Open **Threat Intelligence** and submit a report for `https://secure-chase-online.example.org/verify`.  
-  Then switch to the **Threat Correlation** network view.
-- **Speaker:**  
-  "When researchers uncover a threat, they submit collaborative reports. Unlike naive databases, TrustLens analyzes shared infrastructure: co-hosted IPs, shared nameservers, and brand-targeting patterns. Our graph visualizes relationships backed by deterministic DNS evidence, not AI hallucinations."
+## Strongest features to show
 
----
+- SSRF-aware URL and redirect inspection with bounded requests.
+- Explainable, deterministic URL and message findings.
+- Clear distinction between synthetic fixtures, local heuristics, and external provider results.
+- Non-persisting TLS and passive-header actions.
+- Local report-chain verification with explicit integrity limitations.
 
-### **[2:20 – 2:45] Tamper-Evident Digital Trust Ledger**
-- **Action:**  
-  Navigate to the **Trust Registry** tab.  
-  Click **Verify Fingerprint** on Report Block #0. Observe `status: VERIFIED_AUTHENTIC`.  
-  Point to the hash chaining breakdown.
-- **Speaker:**  
-  "How do we prove collaborative reports haven't been retroactively tampered with?  
-  TrustLens features an append-only, SHA-256 cryptographic hash-chained registry. Each block records a canonical representation, data hash, and previous block link. When verified, the ledger confirms mathematical integrity. We also provide a Solidity smart contract demonstrator in `contracts/TrustLensRegistry.sol` for EVM testnets."
+## Genuine screenshots to capture
 
----
+1. Dashboard with seeded data and visible labels.
+2. Synthetic URL investigation with the fixture disclosure visible.
+3. Message analyzer results with no real personal message.
+4. Threat-correlation graph with its relationship limitations visible.
+5. Registry verification result.
+6. Mobile navigation showing all available sections.
 
-### **[2:45 – 3:00] Conclusion**
-- **Speaker:**  
-  "TrustLens AI requires no paid API keys to run out-of-the-box. It brings transparency to link security, combines passive heuristics with explainable AI, and provides mathematical integrity for threat intelligence.  
-  Thank you — Investigate, Understand, Verify, and Protect with TrustLens AI."
+Capture these from the running application; do not mock, edit, or imply they are production/deployment screenshots.
+
+## Final judging checklist
+
+- Replace no result with a stronger claim than the evidence supports.
+- Say “deterministic rules/heuristics,” not “trained AI/ML.”
+- Identify synthetic examples as synthetic.
+- Mention provider sharing and avoid sensitive URLs.
+- Explain the local-only nature of the registry.
+- Keep the recording within three minutes; do not imply public deployment unless the live URLs have been verified.
+
+No recording has been made or uploaded. Add a video URL to the README only after the actual recording exists.

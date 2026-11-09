@@ -1,76 +1,41 @@
-# TrustLens AI — Security Methodology & Threat Model
+# TrustLens AI — Security Methodology & Limitations
 
-## 1. Core Security Axioms
+## What the application does
 
-1. **HTTPS Confirms Encryption, Not Legitimacy:**
-   A valid TLS certificate issued by a trusted Certificate Authority (e.g., Let's Encrypt, DigiCert) only verifies that communication with that specific domain is encrypted and that the domain registrant verified control of the DNS/host at issue time. Over 80% of modern phishing websites operate over valid HTTPS certificates. TrustLens AI treats HTTPS strictly as a transport security parameter, not proof of organizational trustworthiness.
+- Normalizes submitted HTTP(S) URLs and applies deterministic URL heuristics.
+- Looks up DNS and WHOIS metadata and performs bounded HTTP/TLS checks.
+- Follows redirects one hop at a time, checking each destination.
+- Analyzes messages locally with deterministic rules.
+- Stores community reports in a local SHA-256 hash chain.
 
-2. **Absence of Evidence is Not Evidence of Safety:**
-   Cyber adversaries deploy disposable domains and targeted lure infrastructure that may remain unindexed by global threat feeds for the first 24–72 hours of a campaign. TrustLens AI never marks a domain "Safe" solely because external threat intelligence APIs returned zero matching records.
+These are indicators for investigation, not a guarantee of safety or maliciousness. A valid TLS certificate does not establish that a site or organization is trustworthy.
 
-3. **Strictly Passive, Non-Intrusive Assessment:**
-   TrustLens AI adheres strictly to non-intrusive observation:
-   - Evaluates HTTP response headers and cookies provided in standard GET/HEAD responses.
-   - Inspects public DNS resource records (A, AAAA, MX, NS, TXT).
-   - Retrieves public X.509 TLS certificates.
-   - Probes RFC 9116 security endpoints (`/.well-known/security.txt`, `robots.txt`).
-   - **Never attempts:** SQL injection, XSS exploitation, port scanning, authentication brute-forcing, credential stuffing, or remote code execution.
+## Outbound request policy
 
----
+Before a target HTTP or TLS connection, the backend resolves the hostname and rejects the target if resolution fails, returns no addresses, or includes any non-globally-routable address. Target HTTP requests use a standard-library connection pinned to one of the validated IPs while retaining the original hostname for the HTTP `Host` header and TLS SNI/certificate verification. Redirects are handled manually and each hop is independently resolved, validated, and pinned.
 
-## 2. Server-Side Request Forgery (SSRF) Defenses
+Target HTTP requests have a configured timeout and response-body limit. TLS validation uses the system trust store. The scanner makes ordinary GET/HEAD requests; it does not execute JavaScript, perform port scans, submit credentials, or send exploit payloads. DNS and WHOIS lookups are separate metadata queries.
 
-When inspecting arbitrary external URLs provided by untrusted users, backend scanners are prime targets for SSRF attacks aimed at accessing cloud metadata endpoints (e.g., `169.254.169.254`), container interfaces, or internal microservices.
+The API binds to loopback by default. When `APP_ACCESS_TOKEN` is set, all `/api/*` data endpoints other than health require a bearer token; production startup rejects a missing or shorter-than-32-character token. This shared token is a coarse gate, not per-user identity or record-level authorization, and every token holder can access the same stored data. General API rate limiting is not built in. Do not expose the service publicly without HTTPS, deployment-level abuse controls, and a database configured for persistent storage and backups.
 
-TrustLens AI implements a defense-in-depth SSRF protection pipeline in `app/services/ssrf_guard.py`:
+## Threat intelligence
 
-```
-User URL -> Hostname Parsing -> DNS Resolution -> IP Range Validation -> Network Socket Dispatch
-```
+- URLhaus is queried only when `URLHAUS_API_ENABLED` is true.
+- VirusTotal is queried only when `VIRUSTOTAL_API_KEY` is configured.
+- PhishTank and OpenPhish have no live lookup implementation and are reported unavailable.
+- A provider's no-record result is not a clean verdict. Unavailable providers are not treated as evidence of safety.
+- RFC 2606 `example.com`, `example.org`, and `example.net` targets use synthetic demo data. Simulated matches are marked as such and cannot produce a `CONFIRMED MALICIOUS` classification.
 
-- **Blocked IP Networks:**
-  - Loopback (`127.0.0.0/8`, `::1`)
-  - RFC 1918 Private Ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
-  - Link-Local Unicast (`169.254.0.0/16`, `fe80::/10`)
-  - Documentation Networks (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`)
-  - Multicast & Reserved (`224.0.0.0/4`, `240.0.0.0/4`, `ff00::/8`)
-  - IPv6 Unique Local (`fc00::/7`) & IPv4-mapped IPv6 (`::ffff:0:0/96`)
-- **DNS Pinning & Hop-by-Hop Re-validation:**
-  - Before establishing any TLS socket or HTTP client session, DNS resolution maps the target to all candidate IPs. If any IP resolves to a restricted subnet, the connection is instantly rejected.
-  - Redirect chains are executed hop-by-hop with `follow_redirects=False`. The destination header of each redirect is subjected to the exact same SSRF filter before following.
+Investigation URLs are stored in the local database. When a live provider is enabled, the submitted URL is also sent to that provider. Do not scan URLs containing passwords, session IDs, or other sensitive query parameters.
 
----
+## Message analysis and retention
 
-## 3. Scam Message Analysis & Prompt Injection Defense
+Scam-message analysis uses local deterministic rules; no message is sent to a generative AI service. The submitted message text is not stored. Stored records contain risk/indicator metadata, use a fixed withheld-content preview, and redact indicator excerpts. The immediate analysis response can include short evidence excerpts from the submitted text.
 
-The AI Scam Message Analyzer handles untrusted, potentially adversarial text from SMS, WhatsApp, and email lures.
+## Local report registry
 
-### Adversarial Input Hardening
-- **Passive Data Isolation:** User-submitted text is treated strictly as opaque linguistic data. System prompts encapsulate inputs inside rigid delimiter tags and explicit instructions instructing the AI to ignore any imperative commands embedded within the message.
-- **Deterministic Baseline Fallback:** The analyzer does not rely exclusively on generative AI. An extensive deterministic regex-based rule engine (`app/services/message_analyzer.py`) identifies behavioral patterns independently:
-  - Urgency and artificial deadlines.
-  - Demands for One-Time Passwords (OTPs) or PINs.
-  - Untraceable payment methods (crypto, gift cards, wire transfer).
-  - Unsolicited lottery wins and prize notifications.
-  - Unauthorized remote administration tool requests (AnyDesk, TeamViewer).
-- **Zero Sensitive Data Ingestion:**
-  - The system explicitly advises users never to submit real passwords, OTPs, or private keys.
-  - Volatile sensitive tokens are masked before storage.
+The registry canonicalizes report data, hashes it with SHA-256, and links entries using the prior hash. Verification checks the report payload and the full stored chain. This provides tamper evidence for ordinary record changes, but does not prevent an administrator who can rewrite the database from replacing the chain. It is not a public blockchain, an external timestamp authority, or proof that a submitted report is true. The Solidity file is a standalone demonstrator and is not deployed or called by the application.
 
----
+## Synthetic data and verification
 
-## 4. Tamper-Evident Digital Trust Ledger
-
-To guarantee the historical integrity of collaborative threat reports, TrustLens AI implements an immutable SHA-256 hash-chained registry (`app/services/registry_service.py`):
-
-1. **Canonicalization:** A standardized JSON string with sorted keys and normalized UTC timestamps is constructed from the report's immutable fields.
-2. **Data Hash:** `data_hash = SHA256(canonical_payload)`
-3. **Chaining:** `chained_hash = SHA256(block_index : previous_hash : data_hash : timestamp)`
-4. **Verification:**
-   - Any client or auditor can invoke `GET /api/registry/verify/{report_id}`.
-   - The engine reconstructs the canonical payload from the current database state, computes its SHA-256 hash, and compares it to `stored_data_hash`.
-   - It re-computes `chained_hash` and checks linkage to `previous_hash`.
-   - If a malicious database administrator modifies even one byte of a report's description or severity, the computed data hash fails immediately and triggers `TAMPER_DETECTED`.
-
-> [!NOTE]
-> The cryptographic registry proves the *immutability and tamper-resistance* of the recorded report. It does not prove that an unverified reporter's initial claim was inherently accurate.
+Seeded examples use reserved example domains and are labeled synthetic. They are illustrative fixtures, not verified observations of real services. Current test and build results are recorded in [TESTING_REPORT.md](./TESTING_REPORT.md); results may change as code changes.

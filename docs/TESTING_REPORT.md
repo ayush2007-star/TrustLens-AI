@@ -1,62 +1,21 @@
-# TrustLens AI — Testing and Quality Assurance Report
+# TrustLens AI — Verification Report
 
-**Test Suite Status:** 16 Passed, 0 Failed, 0 Skipped  
-**Coverage Scope:** URL Normalization, SSRF Protection, Heuristics, TLS Parser, Risk Scoring, Message Analysis, Tamper Detection, and API Contracts.
+## Checks run for this hardening change
 
----
+- **Backend:** `cd c:/Users/bakt2/OneDrive/Desktop/TrustLens-AI && $env:PYTHONPATH="backend"; python -m pytest backend/tests -v` — **62 passed in 2.53s**.
+- **Frontend Security:** `cd frontend && npm audit` — **0 vulnerabilities**.
+- **Frontend Production Build:** `cd frontend && npm run build` — **TypeScript check passed and Vite production build completed**.
+- **CORS & Multi-Host Adaptability:** verified parsing for JSON arrays, single origins, and comma-separated origin strings.
+- **PostgreSQL / SQLite Connection Robustness:** verified dialect normalization (`postgres://` -> `postgresql://`).
+- **Diff hygiene:** `git diff --check` — passed.
+- **Genuine UI Verification:** Automated high-resolution screenshot captures across all 10 views and mobile drawer layout into `docs/screenshots/`.
 
-## 1. Test Suite Summary
+The backend suite covers URL normalization, credential rejection, DNS failures, mixed public/private resolution, safe HTTP response handling, port restriction policy, redirect validation, registry integrity, correlation, demo-data labeling, privacy handling, and API-level security patterns.
 
-| Test Module | Tests | Status | Verification Target |
-|:---|:---:|:---:|:---|
-| `test_ssrf_guard.py` | 3 | PASSED | IPv4/IPv6 private ranges, loopbacks, localhost, link-local |
-| `test_url_normalizer.py` | 4 | PASSED | Canonical formatting, brand impersonation, IP hostnames, embedded `@` |
-| `test_message_analyzer.py` | 2 | PASSED | Urgency detection, OTP credential harvesting, benign message baseline |
-| `test_registry_integrity.py` | 2 | PASSED | SHA-256 block registration, verification, single-byte tamper detection |
-| `test_api_endpoints.py` | 5 | PASSED | Healthcheck, dashboard stats, URL investigation, scam analyzer, registry |
+## Warnings and limits
 
----
-
-## 2. Benchmark Test Cases
-
-TrustLens AI includes verified real-world test cases and RFC-compliant synthetic demonstration cases (`example.com`, `example.org`, `example.net`):
-
-### Benign Baseline Cases
-1. **`https://en.wikipedia.org`**
-   - *Outcome:* `LOW RISK` (Score: 8/100).
-   - *Findings:* Valid X.509 Let's Encrypt certificate, HSTS enabled, clean DNS records.
-2. **`https://github.com`**
-   - *Outcome:* `LOW RISK` (Score: 10/100).
-   - *Findings:* Valid DigiCert SAN certificate, HSTS with preload, valid DNS configuration.
-3. **`https://python.org`**
-   - *Outcome:* `LOW RISK` (Score: 10/100).
-   - *Findings:* Verified organizational domain with TLS encryption.
-
-### Suspicious / Malicious Demonstration Cases
-1. **`https://paypal-security-update.example.com/login?token=urgent`**
-   - *Outcome:* `HIGH RISK` (Score: 85/100).
-   - *Findings:* Brand impersonation detecting `paypal` under base domain `example.com`, clustering of high-sensitivity action keywords (`login`, `security`, `update`), hostname mismatch against root certificate.
-2. **`http://198.51.100.42:8080/banking/verification`**
-   - *Outcome:* `HIGH RISK` (Score: 90/100).
-   - *Findings:* Raw IP used instead of registered domain, unencrypted HTTP transport on non-standard port 8080, banking action keyword in unauthenticated path.
-3. **`https://chase-account-alert.example.org/verify-kyc`**
-   - *Outcome:* `HIGH RISK` (Score: 80/100).
-   - *Findings:* Bank brand impersonation (`chase`), high-pressure KYC verification keywords.
-
----
-
-## 3. Cryptographic Tamper Detection Verification
-
-In `test_registry_integrity.py::test_registry_tamper_detection`:
-1. A valid report `https://phishing-portal.example.com` is committed to the registry.
-2. The initial block fingerprint is generated and chained:
-   `chained_hash = SHA256(0 : GENESIS_HASH : data_hash : timestamp)`
-3. A simulated unauthorized modification alters the database record's description.
-4. Calling `verify_report_integrity()` computes the updated data hash, observes a mismatch against `stored_data_hash`, and immediately triggers `status: "TAMPER_DETECTED"`.
-
----
-
-## 4. Frontend Production Build Verification
-
-- **TypeScript Typecheck:** Clean, 0 errors.
-- **Production Bundle:** Vite static build produced under `frontend/dist/`.
+- Pytest emitted a deprecation warning from Starlette's `TestClient` integration about `anyio.abc.BlockingPortal`.
+- The frontend production build still emits a bundle-size warning for a chunk near 415 kB, but the app loads successfully with route-level code splitting in place.
+- No live target websites, third-party threat-intelligence providers, or deployment endpoints were used for verification in this workspace.
+- `example.com`, `example.org`, and `example.net` remain synthetic fixtures and are not live observations.
+- Local SQLite data is preserved and not automatically migrated by these changes.

@@ -1,257 +1,136 @@
-# TrustLens AI – AI-Powered Web Threat Detection & Digital Trust Intelligence
+# TrustLens AI
+**Explainable web-threat investigation and digital-trust intelligence using bounded passive checks and deterministic analysis.**
 
-> **Tagline:** Investigate. Understand. Verify. Protect.  
-> An intelligent cybersecurity platform that investigates phishing URLs, inspects real TLS certificates, analyzes social engineering messages, correlates threat infrastructure, and cryptographically anchors collaborative reports in an immutable tamper-evident ledger.
+## Problem
 
----
+Phishing and scams use deceptive URLs, redirects, impersonation, and incomplete threat-feed data. HTTPS alone does not prove a site is legitimate, and no threat-feed match is not proof of safety. TrustLens is a decision-support demo that makes evidence and limitations visible while restricting outbound requests to reduce SSRF risk.
 
-## 1. Project Name & Description
+## Solution
 
-**TRUSTLENS AI** is an explainable digital trust and threat intelligence platform designed to uncover deceptive web infrastructure. It dismantles the widespread false sense of security surrounding the HTTPS "lock icon", exposes brand typosquatting and deceptive URL encoding, evaluates passive website security posture without intrusive exploits, dissects social engineering lures with deterministic and AI engines, and provides mathematical non-repudiation for community threat reports via a SHA-256 hash-chained registry.
+TrustLens combines URL structure heuristics, bounded DNS and HTTP/TLS inspection, passive security-header analysis, optional external threat intelligence, deterministic scam-message rules, a local report registry, and infrastructure correlations. Findings are evidence-linked and labeled as synthetic, heuristic, or provider-sourced where applicable.
 
----
+The application does **not** use a trained ML model or runtime LLM. It does not provide a definitive safety verdict.
 
-## 2. Problem
+## Demo links and screenshot
 
-Modern digital threats increasingly exploit systemic cognitive blind spots in web security:
+- **Repository:** `https://github.com/ayush2007-star/TrustLens-AI`
+- **Local frontend:** `http://localhost:5173`
+- **Local API health:** `http://127.0.0.1:8000/api/health`
+- **Local interactive API docs:** `http://127.0.0.1:8000/docs`
+- **Production deployment:** Configured for Vercel (frontend) + Render / Container (backend) via `frontend/vercel.json`, `render.yaml`, `Dockerfile`, and `Procfile`. Verified live URLs are documented below once deployed.
 
-1. **The HTTPS Legitimacy Fallacy:** Over 80% of active phishing websites now operate over valid, trusted HTTPS certificates. Users are trained to equate the browser lock icon with safety, yet a valid certificate only verifies in-transit encryption and hostname ownership—never business honesty or legitimacy.
-2. **The 72-Hour Zero-Day Window:** Newly registered phishing domains and targeted smishing campaigns remain unindexed by global threat feeds during their initial dissemination window. Relying solely on external blocklists leaves victims vulnerable.
-3. **Black-Box, Inactionable Scores:** Generic security tools output arbitrary percentages without transparent, explainable evidence or specific remediation guidance.
-4. **Scanner Exploitation & SSRF Risks:** Naive URL analysis tools that blindly fetch user-submitted links expose backend infrastructure to Server-Side Request Forgery (SSRF) and cloud metadata exfiltration.
-5. **Report Integrity Vulnerabilities:** Centralized threat databases lack non-repudiation, making it impossible to cryptographically verify whether a recorded incident report was altered after submission.
+### Genuine Application Screenshots
 
----
+| Security Dashboard | URL Threat Investigation |
+|---|---|
+| ![Security Dashboard](docs/screenshots/01-dashboard.png) | ![URL Investigation](docs/screenshots/02-investigate-url.png) |
 
-## 3. Solution
+| Scam Message Analyzer | Threat Infrastructure Correlation |
+|---|---|
+| ![Scam Message Analyzer](docs/screenshots/03-message-analyzer.png) | ![Threat Correlation](docs/screenshots/04-threat-correlation.png) |
 
-TrustLens AI delivers an end-to-end, defense-in-depth investigation platform:
+| Digital Trust Registry | Responsive Mobile Experience |
+|---|---|
+| ![Trust Registry](docs/screenshots/05-trust-registry.png) | ![Mobile View](docs/screenshots/11-mobile-view.png) |
 
-- **Intelligent URL & Deception Heuristics:** Identifies high-value brand typosquatting (e.g. PayPal, Chase, Microsoft), Punycode/IDN homoglyph lookalikes (`xn--`), raw IP authorities, non-standard service ports, and embedded user credentials.
-- **SSRF-Protected Safe Redirect Tracing:** Audits redirect chains step-by-step with `follow_redirects=False`. Validates every destination hop against private/loopback/cloud-metadata CIDRs before opening connections. **Strictly avoids executing JavaScript.**
-- **Real X.509 TLS Certificate Inspection:** Establishes native cryptographic handshakes to inspect Subject Alternative Names (SANs), CA issuer authorities, signature algorithms, public key modulus, remaining validity days, and hostname mismatches.
-- **Passive Website Security Posture:** Non-intrusively evaluates HSTS, CSP, X-Frame-Options clickjacking defenses, X-Content-Type-Options, cookie security flags, and RFC 9116 `security.txt` accessibility without active probing.
-- **AI Scam & Social Engineering Analyzer:** Dissects SMS, WhatsApp, and email messages for artificial urgency, OTP/credential solicitation, irreversible payment demands, and remote administration tools (AnyDesk, TeamViewer), backed by a deterministic fallback that runs 100% offline.
-- **Threat Correlation Topology:** Visualizes interconnected infrastructure clusters (co-hosted IPs, authoritative nameservers, and campaign targets) supported by deterministic DNS records.
-- **Tamper-Evident Digital Trust Registry:** An append-only cryptographic ledger chaining canonical report payloads via SHA-256. Any historical alteration to a report triggers instant `TAMPER_DETECTED` verification alerts. Includes an EVM Solidity smart contract demonstrator (`contracts/TrustLensRegistry.sol`).
+## Tech stack
 
----
+- **Frontend:** React 18, TypeScript, React Router, Vite 6, Tailwind CSS, Recharts, Axios.
+- **Backend:** Python 3.11+, FastAPI, Pydantic, SQLAlchemy, SQLite by default.
+- **Analysis:** deterministic URL/message heuristics, DNS metadata, SSRF-guarded passive HTTP, TLS certificate metadata, optional URLhaus/VirusTotal lookup, and a local SHA-256 hash chain.
+- **Testing:** pytest and the Vite/TypeScript production build.
 
-## 4. Demo Links and Screenshot
+## Architecture
 
-- **Web Dashboard:** [http://localhost:5173](http://localhost:5173)
-- **Interactive REST API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **API Health Endpoint:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
+The React single-page application calls a FastAPI API. The URL investigation pipeline normalizes input, applies local heuristics, performs bounded DNS/redirect/TLS/header checks, optionally queries configured threat providers, computes a deterministic risk classification, and stores the result in SQLAlchemy-backed persistence. TLS-only and security-header-only actions use separate non-persisting endpoints.
 
-### Terminal & Web UI Preview
-```
-+---------------------------------------------------------------------------------------+
-|  TRUSTLENS AI  [Dashboard] [Investigate URL] [Message Analyzer] [TLS Trust] [Ledger]  |
-+---------------------------------------------------------------------------------------+
-|  TARGET: https://paypal-security-update.example.com/login?token=urgent                |
-|  RISK CLASSIFICATION: [ HIGH RISK ] (Threat Score: 85/100) - Confidence: HIGH         |
-|                                                                                       |
-|  [!] Brand Impersonation Detected: High-value brand 'PAYPAL' in host 'example.com'    |
-|  [!] Sensitive Action Keywords: Clustered authentication tokens ['login', 'update']   |
-|  [!] TLS Certificate Mismatch: Subject 'example.com' does not match target host       |
-|  [!] Missing Security Headers: No HSTS or Content-Security-Policy configured          |
-|                                                                                       |
-|  CRYPTOGRAPHIC LEDGER: Block #0 [SHA-256: 31a388641140...] -> VERIFIED AUTHENTIC      |
-+---------------------------------------------------------------------------------------+
-```
+Message analysis is deterministic and stores redacted metadata, not submitted message text. Community reports and investigations are stored in the configured database. The registry is a local tamper-evident hash chain, not a public blockchain or independent trust anchor. See [architecture](./docs/ARCHITECTURE.md) and [security methodology](./docs/SECURITY_METHODOLOGY.md).
 
----
-
-## 5. Tech Stack
-
-### Frontend
-- **Framework:** React 18 with TypeScript
-- **Build Tool:** Vite 5
-- **Styling:** Tailwind CSS (Custom Dark Cybersecurity Palette `#0B0F19`, `#111827`, `#06B6D4`, `#3B82F6`)
-- **Navigation:** React Router v6
-- **Icons:** Lucide React
-- **Data Visualization:** Recharts
-- **HTTP Client:** Axios
-
-### Backend
-- **Runtime:** Python 3.11+ (Tested on Python 3.13)
-- **Framework:** FastAPI + Starlette
-- **Data Modeling & Validation:** Pydantic v2 + Pydantic-Settings
-- **ORM & Persistence:** SQLAlchemy 2 + SQLite
-- **Cryptography & TLS:** Python `cryptography` (X.509 parsers) + `ssl`
-- **DNS Resolution:** `dnspython`
-- **HTTP & Passive Auditing:** `httpx` (async/sync HTTP client)
-- **Testing:** `pytest` + `pytest-asyncio` + FastAPI TestClient
-
-### Smart Contract / Web3 (Demonstrator)
-- **Language:** Solidity `^0.8.20`
-- **Contract:** `contracts/TrustLensRegistry.sol` (EVM compatible)
-
----
-
-## 6. Architecture
-
-```mermaid
-flowchart TD
-    subgraph Client["Presentation Tier (React + Vite + Tailwind)"]
-        UI_Nav["Cybersecurity SaaS Dashboard"]
-        UI_Inv["URL Deep Investigator"]
-        UI_Msg["AI Scam Message Analyzer"]
-        UI_TLS["TLS & Digital Trust Inspector"]
-        UI_Sec["Passive Security Assessor"]
-        UI_Reg["Tamper-Evident Ledger & Verifier"]
-        UI_Corr["Threat Correlation Network"]
-    end
-
-    subgraph API["Backend API Gateway (FastAPI)"]
-        Router["REST Endpoints / FastAPI Router"]
-        SSRF["SSRF Guard & Network Policy Filter"]
-    end
-
-    subgraph Engines["Analytical & Intelligence Engines"]
-        Norm["URL Normalizer & Heuristics"]
-        DNS_Whois["DNS Resolver & WHOIS Intel"]
-        Redirect["Safe Redirect Tracer (0 JS)"]
-        TLS["X.509 Cryptography Inspector"]
-        Headers["Passive Header & Cookie Auditor"]
-        Feeds["Threat Intel Adapters (URLhaus, PhishTank, etc.)"]
-        Risk["Centralized Explainable Risk Engine"]
-        ScamAI["Deterministic & LLM Scam Analyzer"]
-        Registry["SHA-256 Chained Hash Ledger"]
-        Corr["Correlation Graph Builder"]
-    end
-
-    subgraph Storage["Persistence & Integrity"]
-        DB[("SQLite Database / SQLAlchemy ORM")]
-        Chain["Append-Only Cryptographic Block Ledger"]
-    end
-
-    UI_Inv -->|POST /api/investigations| Router
-    UI_Msg -->|POST /api/analyze-message| Router
-    UI_Reg -->|GET /api/registry/verify| Router
-    UI_Corr -->|GET /api/threat-relationships| Router
-
-    Router --> SSRF
-    SSRF --> Norm
-    SSRF --> DNS_Whois
-    SSRF --> Redirect
-    SSRF --> TLS
-    SSRF --> Headers
-    SSRF --> Feeds
-
-    Norm --> Risk
-    DNS_Whois --> Risk
-    Redirect --> Risk
-    TLS --> Risk
-    Headers --> Risk
-    Feeds --> Risk
-
-    Risk --> DB
-    ScamAI --> DB
-    Registry --> Chain
-    Chain --> DB
-    Corr --> DB
-```
-
----
-
-## 7. Setup and Run Steps
-
-TrustLens AI requires **no paid API keys** and operates out-of-the-box on a clean machine.
+## Setup and run steps
 
 ### Prerequisites
-- Python 3.11+
-- Node.js v18+ and npm
 
-### 1. Clone & Environment Setup
-```bash
-git clone https://github.com/bakt2/TrustLens-AI.git
-cd TrustLens-AI
+- Python 3.11 or newer.
+- Node.js 20 or newer and npm.
 
-# Create Python Virtual Environment
+### Backend (from repository root)
+
+```powershell
 python -m venv .venv
-
-# Activate Virtual Environment
-# On Windows (PowerShell):
 .\.venv\Scripts\Activate.ps1
-# On Linux/macOS:
-# source .venv/bin/activate
-
-# Install Backend Dependencies
-pip install -r backend/requirements.txt
-```
-
-### 2. Frontend Dependencies
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-### 3. Run Backend Server
-```bash
-# From repository root with virtualenv active:
-# On Windows PowerShell:
-$env:PYTHONPATH="backend"
+python -m pip install -r backend\requirements.txt
+Copy-Item .env.example .env
+$env:PYTHONPATH = "backend"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-
-# On Linux/macOS:
-# PYTHONPATH=backend python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-*Backend API initializes tables and seeds benchmark dataset automatically at [http://127.0.0.1:8000](http://127.0.0.1:8000).*
 
-### 4. Run Frontend Dashboard
-```bash
-# In a separate terminal:
-cd frontend
+For Linux/macOS, activate with `source .venv/bin/activate`, copy `.env.example` to `.env`, set `PYTHONPATH=backend`, then run the same Uvicorn module and port.
+
+### Frontend
+
+```powershell
+Set-Location frontend
+npm ci
 npm run dev
 ```
-*Open [http://localhost:5173](http://localhost:5173) in your browser.*
 
-### 5. Run Verification & Test Suite
-```bash
-# Run backend test suite (16 tests covering heuristics, SSRF, TLS, registry, and APIs):
-$env:PYTHONPATH="backend"
-pytest backend/tests -v
+Open `http://localhost:5173`. Vite proxies `/api` to `http://127.0.0.1:8000`. For a separately hosted API, set `VITE_API_BASE_URL` to its HTTPS API base ending in `/api` in the frontend build environment. See [frontend/.env.example](./frontend/.env.example).
 
-# Run production frontend build:
-cd frontend
-npm run build
+### Environment variables
+
+The backend reads `.env` from its working directory. Copy the root [.env.example](./.env.example) to `.env` and configure only what is needed.
+
+| Variable | Purpose |
+|---|---|
+| `HOST`, `PORT` | Backend bind address and port. Use `0.0.0.0` only behind a correctly configured public deployment. |
+| `ENVIRONMENT` | Runtime environment. In `production`, startup requires `APP_ACCESS_TOKEN` of at least 32 characters. |
+| `CORS_ORIGINS` | JSON array of allowed browser origins; set the actual frontend origin for deployment. CORS is not authentication. |
+| `APP_ACCESS_TOKEN` | Optional shared bearer token for all `/api/*` data endpoints other than health. Keep it secret; users sharing it share access to the same data. It is not per-user authorization. |
+| `DATABASE_URL` | SQLAlchemy database URL. Defaults to local SQLite; production must use storage with verified persistence and backups. |
+| `REQUEST_TIMEOUT_SECONDS`, `MAX_REDIRECTS`, `MAX_RESPONSE_BYTES` | Bounds for outbound inspection requests. |
+| `COMMUNITY_WRITES_ENABLED` | Keeps community report writes disabled by default. |
+| `COMMUNITY_ABUSE_KEY` | Required by the optional community-write controls; not a user login. |
+| `VIRUSTOTAL_API_KEY` | Optional VirusTotal credential; never commit a real key. |
+| `URLHAUS_API_ENABLED` | Enables/disables URLhaus checks. When enabled, submitted URLs may be sent to that provider. |
+| `VITE_API_BASE_URL` | Optional frontend build-time API URL; unset uses Vite's local `/api` proxy. |
+
+Never put private URLs, tokens, credentials, or real API keys into public demo inputs. The API stores submitted investigation URLs, and enabled threat providers may receive them. Do not expose a production deployment without access controls, abuse protections, HTTPS, and verified persistent database storage. The shared token is a coarse demo gate, not multi-user privacy.
+
+### Verification commands
+
+Run backend tests from repository root against an isolated database so the configured local database is not changed:
+
+```powershell
+$env:PYTHONPATH = "backend"
+$env:DATABASE_URL = "sqlite:///./trustlens-test.db"
+python -m pytest backend\tests -v
 ```
 
----
+Run the frontend checks from `frontend`:
 
-## 8. Disclosures (Libraries, Templates, AI Tools)
+```powershell
+npm run build
+npm audit
+```
 
-- **Third-Party Libraries Used:**
-  - `FastAPI`, `Starlette`, `Uvicorn`, `Pydantic v2`, `SQLAlchemy`, `cryptography`, `dnspython`, `python-whois`, `httpx`, `pytest`.
-  - `React 18`, `Vite`, `Tailwind CSS`, `React Router DOM`, `Lucide React`, `Recharts`, `Axios`.
-- **Public Threat Intelligence Feeds:**
-  - abuse.ch URLhaus public lookup API.
-  - PhishTank community feed format.
-  - OpenPhish community heuristics.
-  - VirusTotal v3 API (optional integration enabled when `VIRUSTOTAL_API_KEY` is present).
-- **AI Coding Assistants & Templates:**
-  - Scaffolding initialized using standard Vite React-TS template.
-  - Code authored with assistance from Google DeepMind Antigravity AI engineering agent.
-  - No proprietary or copyrighted company code utilized. All brand marks and logos are original custom SVGs.
+The test API module initializes and seeds its configured database at import; use a disposable test database and remove it after testing. Test/build results for this workspace are recorded in [docs/TESTING_REPORT.md](./docs/TESTING_REPORT.md).
 
----
+## Disclosures (libraries, templates, AI tools)
 
-## 9. Track
+- Runtime analysis is deterministic and rule-based. No trained ML model or LLM is used to produce threat classifications.
+- Synthetic reserved-domain fixtures are examples, not live observations.
+- URLhaus is an external provider integration; VirusTotal is optional by API key. PhishTank and OpenPhish are not live integrations.
+- Submitted investigation URLs are stored and may be sent to enabled threat-intelligence providers. Message text is analyzed locally; the stored message record contains redacted indicator metadata.
+- Third-party libraries include React, React Router, Vite, Tailwind CSS, Recharts, Axios, FastAPI, SQLAlchemy, Pydantic, `cryptography`, `dnspython`, and `httpx`.
+- GitHub Copilot was used as an AI coding assistant. No user study, external validation, or production threat-detection accuracy claim is made.
+- The Solidity registry source is a standalone demonstrator and is not deployed or called by the web application.
 
-**Hackathon Track:** Cybersecurity, Digital Trust & AI Safety / Web3 Public Good.
+## Track
 
----
+**AI-Powered Web Threat Detection & Digital Trust Intelligence**
 
-## 10. Demo Video
+The current application fits the digital-trust and explainable threat-intelligence portions of the track. Its current analyzer is heuristic, not AI/ML; a genuinely evaluated ML component remains future work.
 
-**3-Minute Live Video Walkthrough Script:** (See detailed breakdown in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md))
+## Demo video
 
-- **0:00 – 0:15:** The Problem: Over 80% of phishing sites use valid HTTPS. Explaining the Digital Trust Fallacy.
-- **0:15 – 0:55:** Live Investigation: Analyzing `https://paypal-security-update.example.com/login?token=urgent`. Typosquatting detection, SSRF-safe redirect tracing, and explainable risk classification (85/100).
-- **0:55 – 1:20:** TLS & Security Posture: Demonstrating real X.509 cert SAN extraction, hostname mismatch detection, and passive HTTP header auditing without intrusive exploits.
-- **1:20 – 1:45:** AI Scam Message Analysis: Testing SMS smishing and fake delivery lures with deterministic pattern evaluation and OTP harvesting detection.
-- **1:45 – 2:20:** Threat Intel & Infrastructure Correlation: Submitting collaborative community threat reports and inspecting the connected topology graph.
-- **2:20 – 2:45:** Cryptographic Trust Registry: Verifying SHA-256 block fingerprints in the immutable hash chain, demonstrating single-byte tamper detection.
-- **2:45 – 3:00:** Conclusion: Highlighting clean-machine setup, zero-paid-API requirement, and production-grade engineering honesty.
+No demo video has been recorded or uploaded. Use the truthful, maximum-three-minute walkthrough in [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md), then add the real video URL here after recording.
